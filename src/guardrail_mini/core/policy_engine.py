@@ -122,7 +122,14 @@ class PolicyRegistry:
                 )
             started = perf_counter()
             try:
-                result = policy.evaluate(text)
+                try:
+                    result = policy.evaluate(text)
+                except TimeoutError as error:
+                    raise GuardrailError(
+                        504,
+                        "INFERENCE_TIMEOUT",
+                        "Policy inference exceeded its execution time limit.",
+                    ) from error
             finally:
                 POLICY_LATENCY_SECONDS.labels(policy_id=policy_id).observe(perf_counter() - started)
             POLICY_EVALUATIONS_TOTAL.labels(

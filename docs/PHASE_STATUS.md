@@ -141,6 +141,19 @@ Verification:
 - `ruff check .`, `ruff format --check .`, and `mypy src tests scripts migrations`: passed.
 - Prometheus and Grafana YAML provisioning files parse, and the Grafana dashboard JSON validates.
 
+## Phase 9 — Testing and hardening
+
+**Status: complete.** Added a 64 KiB default HTTP body cap (configurable from 1 KiB to 1 MiB), a bounded fixed-window per-project evaluation rate limit (600/minute by default), `Retry-After` responses, and stable `INFERENCE_TIMEOUT` mapping for model backends that raise `TimeoutError`. CORS stays disabled by default. Added failure tests for oversized bodies, rate limiting, timeouts, and missing database schema; documented API-key, body-size, rate-limit, CORS, TLS, and metrics endpoint security.
+
+`pip-audit` is part of the development extras. On 2026-09-20 it reported no known vulnerabilities in the installed, PyPI-indexed environment after updating pip and pytest. The audit service cannot assess the locally installed spaCy model package (`en-core-web-sm`) or this unpublished project package because they are not present in its PyPI index.
+
+Verification:
+
+- `pytest`: 39 passed, including real model/API, policy, authentication, request-size, rate-limit, timeout, and startup failure coverage.
+- `ruff check .`, `ruff format --check .`, and `mypy src tests scripts migrations`: passed.
+- `pip-audit --cache-dir /private/tmp/guardrail-pip-audit`: no known vulnerabilities in indexed packages.
+- The scan identified vulnerable `pip 25.0.1` and `pytest 8.4.2`; the environment now uses `pip 26.2.1` and `pytest 9.1.1`, and the declared pytest range requires `>=9.0.3`.
+
 ## Next
 
-Phase 9 wires the API, PostgreSQL, artifact storage, Prometheus, and Grafana into a reproducible Docker Compose environment.
+Phase 10 profiles actual inference latency and evaluates ONNX Runtime only if profiling shows it can improve measured performance.

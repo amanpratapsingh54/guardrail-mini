@@ -10,6 +10,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from guardrail_mini.auth.keys import ApiKeyPrincipal
+from guardrail_mini.core.config import Settings
 from guardrail_mini.main import create_app
 from guardrail_mini.observability.logging import JsonFormatter, request_id_context
 
@@ -74,6 +75,23 @@ async def test_unexpected_error_returns_safe_response_and_request_id() -> None:
     assert response.headers["X-Request-ID"] == "failure-123"
     assert response.json()["error"]["request_id"] == "failure-123"
     assert "private request content" not in response.text
+
+
+@pytest.mark.anyio
+async def test_oversized_request_is_rejected_with_matching_request_id() -> None:
+    settings = Settings(_env_file=None, max_request_body_bytes=1024)  # type: ignore[call-arg]
+    app = create_app(settings)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/health",
+            content=b"x" * 1025,
+            headers={"X-Request-ID": "oversized-123"},
+        )
+
+    assert response.status_code == 413
+    assert response.headers["X-Request-ID"] == "oversized-123"
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    assert response.json()["error"]["request_id"] == "oversized-123"
 
 
 def test_json_log_formatter_drops_unapproved_fields_and_free_form_messages() -> None:

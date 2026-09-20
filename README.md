@@ -2,7 +2,7 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The current implementation is **Phase 8: three guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, and observability**. It includes toxicity classification, hybrid PII detection, prompt-injection classification, request-selected policies, `ANY_BLOCK` aggregation, tenant/project-scoped credentials, key creation and revocation, checksum-verified model loading, request IDs, JSON logs, Prometheus metrics, and a provisioned Grafana dashboard.
+The first nine phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, and failure-path tests. Phase 10 profiles inference before deciding whether ONNX Runtime offers a measured improvement.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
 
@@ -108,6 +108,14 @@ Subsequent project keys can be created with `POST /v1/api-keys` and revoked with
 
 Responses include `X-Request-ID`; evaluation JSON carries the same ID. Application logs are JSON and omit request text, query parameters, and credentials. Prometheus metrics are available at `/metrics`. Prometheus and Grafana provisioning, dashboard panels, metric definitions, and Compose connection details are in [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 
+The API caps request bodies and applies a per-project evaluation rate limit. CORS is disabled until a trusted browser origin is explicitly configured at an HTTPS gateway. See [docs/SECURITY.md](docs/SECURITY.md) for limits and deployment security requirements.
+
+Run the dependency advisory check after installing development extras:
+
+```bash
+pip-audit
+```
+
 ## MinIO model artifacts
 
 MinIO is used as a local S3-compatible artifact store. The current community server repository is archived; this project uses a pinned local build for evaluation and the generic S3 API, with managed S3 intended for public deployment. The source build, local credentials, bucket layout, upload command, startup loading, checksum validation, and cache behavior are documented in [docs/MODEL_REGISTRY.md](docs/MODEL_REGISTRY.md).
@@ -137,6 +145,7 @@ docs/MODEL_REGISTRY.md  MinIO setup and model artifact lifecycle
 docs/DATABASE.md        PostgreSQL setup and migration instructions
 docs/AUTHENTICATION.md  API-key lifecycle and tenant/project scope
 docs/OBSERVABILITY.md  request IDs, structured logs, metrics, and dashboards
+docs/SECURITY.md       request limits, API keys, CORS, and deployment security
 monitoring/             Prometheus and Grafana provisioning and dashboard
 docs/DECISIONS.md       major implementation choices
 migrations/             Alembic schema revisions

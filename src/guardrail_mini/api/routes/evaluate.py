@@ -10,7 +10,9 @@ from pydantic import BaseModel, Field
 
 from guardrail_mini.api.auth import get_authenticated_project
 from guardrail_mini.auth.keys import ApiKeyPrincipal
+from guardrail_mini.auth.rate_limit import ProjectRateLimiter
 from guardrail_mini.core.config import Settings
+from guardrail_mini.core.errors import GuardrailError
 from guardrail_mini.core.policy_engine import PolicyAction, PolicyRegistry, PolicyResult
 from guardrail_mini.policies.toxicity import ToxicityClassifier
 
@@ -67,6 +69,10 @@ def evaluate(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The policy engine is not ready.",
         )
+    rate_limiter: ProjectRateLimiter | None = getattr(request.app.state, "rate_limiter", None)
+    if rate_limiter is None:
+        raise GuardrailError(503, "MODEL_NOT_READY", "The API is not ready for requests.")
+    rate_limiter.check(principal.project_id)
 
     results, action = registry.evaluate(body.input, body.policies)
     request_id = getattr(request.state, "request_id", f"req_{uuid4().hex}")

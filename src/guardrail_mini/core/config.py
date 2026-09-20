@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "INFO"
     database_url: str | None = None
+    max_request_body_bytes: int = Field(default=65_536, ge=1_024, le=1_048_576)
+    rate_limit_requests_per_minute: int = Field(default=600, ge=1, le=100_000)
     minio_endpoint_url: AnyHttpUrl | None = None
     minio_access_key: str | None = None
     minio_secret_key: SecretStr | None = None

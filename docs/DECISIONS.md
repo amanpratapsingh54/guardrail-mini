@@ -98,3 +98,12 @@
 - **Reason:** The initial service remains self-contained while operators can correlate an evaluation's response ID with a request log and inspect latency/decision trends. An explicit log field allowlist prevents request input, query parameters, and credentials from being logged accidentally.
 - **Trade-off:** Metrics are process-local and need a scrape backend; multi-replica aggregation belongs in Prometheus. The current JSON request log omits exception messages to prevent accidental input disclosure.
 - **Reconsider when:** A deployment requires managed telemetry, audit retention, distributed trace spans, or policy-specific SLOs.
+
+## Request hardening
+
+- **Problem:** Bound untrusted HTTP input and protect the CPU-bound local inference path from one project consuming all available request capacity.
+- **Options:** Rely only on model input validation; add a request body cap and per-process project window; introduce a shared gateway or Redis rate limiter immediately.
+- **Decision:** Buffer request bodies only up to 64 KiB by default (configurable up to 1 MiB) and enforce a 600 requests/minute fixed window per authenticated project. Keep the rate-limit state in a bounded in-process LRU; send `429 RATE_LIMITED` with `Retry-After`. Convert a backend `TimeoutError` to a stable `504 INFERENCE_TIMEOUT` response.
+- **Reason:** The input is small text, and a bounded local implementation makes request cost predictable without an extra service. The 10,000-character schema limit remains an additional policy-level constraint.
+- **Trade-off:** The process-local rate limit is not shared across workers or replicas, and a `TimeoutError` mapping does not forcibly cancel the current synchronous model call. A gateway is needed for a global quota; a cancellable worker boundary is needed for hard inference deadlines.
+- **Reconsider when:** Load tests show the local quota needs to adapt to model capacity, or a deployment adds replicas and needs a shared rate-limit policy.

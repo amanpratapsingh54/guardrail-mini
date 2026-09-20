@@ -2,9 +2,12 @@
 
 import pytest
 
+from guardrail_mini.core.errors import GuardrailError
 from guardrail_mini.core.policy_engine import (
     AggregationStrategy,
     PolicyAction,
+    PolicyMetadata,
+    PolicyRegistry,
     PolicyResult,
     aggregate_decisions,
 )
@@ -47,3 +50,25 @@ def test_highest_severity_strategy_selects_the_highest_severity_policy() -> None
 def test_aggregation_requires_at_least_one_result() -> None:
     with pytest.raises(ValueError, match="At least one policy result"):
         aggregate_decisions([])
+
+
+def test_inference_timeout_maps_to_stable_api_error() -> None:
+    class _TimeoutPolicy:
+        metadata = PolicyMetadata(
+            id="timeout",
+            name="Timeout policy",
+            version="test",
+            threshold=0.8,
+            review_threshold=None,
+            severity=1,
+        )
+
+        def evaluate(self, text: str) -> PolicyResult:
+            del text
+            raise TimeoutError
+
+    with pytest.raises(GuardrailError) as raised:
+        PolicyRegistry([_TimeoutPolicy()]).evaluate("sample", ["timeout"])
+
+    assert raised.value.status_code == 504
+    assert raised.value.code == "INFERENCE_TIMEOUT"

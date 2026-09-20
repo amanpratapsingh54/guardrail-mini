@@ -21,6 +21,19 @@ def test_thresholds_can_be_configured_without_a_review_band() -> None:
     assert settings.toxicity_review_threshold is None
 
 
+def test_request_security_limits_are_bounded() -> None:
+    settings = Settings(
+        _env_file=None,
+        max_request_body_bytes=131_072,
+        rate_limit_requests_per_minute=120,
+    )  # type: ignore[call-arg]
+    assert settings.max_request_body_bytes == 131_072
+    assert settings.rate_limit_requests_per_minute == 120
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, max_request_body_bytes=100)  # type: ignore[call-arg]
+
+
 def test_minio_requires_endpoint_and_both_credentials() -> None:
     with pytest.raises(ValidationError, match="endpoint, access key, and secret key together"):
         Settings(  # type: ignore[call-arg]
