@@ -84,6 +84,8 @@ def create_app(
             prompt_injection_classifier = load_prompt_injection_classifier(
                 model_settings.prompt_injection_model_dir,
                 model_settings.model_device,
+                runtime=model_settings.model_runtime,
+                onnx_cache_dir=model_settings.onnx_cache_dir,
             )
             app.state.policy_registry = PolicyRegistry(
                 [

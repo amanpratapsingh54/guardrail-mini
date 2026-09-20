@@ -2,6 +2,8 @@
 
 Phase 6 stores versioned Transformer artifacts in MinIO through the standard S3 API. PostgreSQL stores each model's ID, version, framework, S3 URI, manifest checksum, and metrics metadata. The API resolves those rows once during startup, fetches any missing model files to a local cache, verifies the manifest and every file checksum, loads the classifiers, and warms them before `/ready` succeeds. Inference handlers never call MinIO or download model files.
 
+With `GUARDRAIL_MODEL_RUNTIME=onnxruntime`, startup also creates or reuses a derived float32 ONNX graph under `GUARDRAIL_ONNX_CACHE_DIR` after validating the source artifact. The cache key includes the manifest digest and PyTorch, ONNX, ONNX Script, and ONNX Runtime versions. Generated graphs are not uploaded to MinIO and do not replace the verified source weights. First-time export happens before readiness; later startups use the cached graph. The two graph files add about 959 MiB. See [the Phase 10 profile](performance/phase10-profile.md) for measured latency and score comparisons.
+
 ## Current MinIO distribution note
 
 As of September 2026, the upstream MinIO community server repository is archived and its README says future community builds are source-only; its Homebrew formula is deprecated. This project pins the last tagged community release for a local portfolio demo and keeps its application client on the S3 API. Do not use this pinned community server as a new public production dependency; use a maintained object store such as managed S3 for deployment. See the [upstream repository status](https://github.com/minio/minio) and [Homebrew formula](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/m/minio.rb).

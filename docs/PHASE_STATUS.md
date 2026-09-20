@@ -133,7 +133,7 @@ See [AUTHENTICATION.md](AUTHENTICATION.md) for first-key setup, endpoint example
 
 **Status: complete.** Added response/request correlation IDs, JSON request and error logs with an explicit field allowlist, request/policy/model latency histograms, decision/error counters, `/metrics`, and provisioned Prometheus/Grafana configurations with an overview dashboard. Request bodies, query strings, credentials, and detected PII values are not logged. Metrics use route templates and stable IDs/codes rather than input-derived labels.
 
-The Prometheus target and Grafana datasource/dashboard provisioning are ready for the Docker Compose services in Phase 9. Until then, `/metrics` can be inspected directly from a locally running API.
+The Prometheus target and Grafana datasource/dashboard provisioning are ready for the Docker Compose services in Phase 11. Until then, `/metrics` can be inspected directly from a locally running API.
 
 Verification:
 
@@ -154,6 +154,18 @@ Verification:
 - `pip-audit --cache-dir /private/tmp/guardrail-pip-audit`: no known vulnerabilities in indexed packages.
 - The scan identified vulnerable `pip 25.0.1` and `pytest 8.4.2`; the environment now uses `pip 26.2.1` and `pytest 9.1.1`, and the declared pytest range requires `>=9.0.3`.
 
+## Phase 10 — ONNX and performance optimization
+
+**Status: complete.** Profiled the serial, warmed CPU inference path before evaluating ONNX Runtime. The paired ONNX float32 backend materially reduced per-call model score latency on both Transformer policies, with matching policy decisions across the fixed short and maximum-length examples. Dynamic INT8 quantization was rejected because it changed prompt-injection scores too much. ONNX export is performed from verified local artifacts at startup and stored in a versioned ignored cache; the request path does not export or download models. ONNX Runtime currently supports CPU only. See [the Phase 10 performance profile](performance/phase10-profile.md) for hardware, method, measured results, output parity, artifact size, and trade-offs.
+
+The production cache uses PyTorch's `dynamo=True` ONNX exporter with opset 18 and dynamic batch/sequence dimensions. The resulting float32 graph is stored as one file; export completes before readiness.
+
+Verification:
+
+- `pytest`: 41 passed, including authenticated API inference through the ONNX backend for all three policies, model-maximum token lengths, and cache reuse without re-export.
+- `ruff check .`, `ruff format --check .`, and `mypy src tests scripts migrations`: passed.
+- `pip-audit` could not reach `pypi.org` because network name resolution is unavailable in this environment. A source advisory review found an ONNX converter vulnerability fixed in 1.22, so the optional dependency now requires `onnx>=1.22`; the installed version is 1.23.0. The full dependency audit still needs to run from a network-enabled environment. See the [ONNX advisory](https://github.com/onnx/onnx/security/advisories/GHSA-hwpq-hmq9-wj77).
+
 ## Next
 
-Phase 10 profiles actual inference latency and evaluates ONNX Runtime only if profiling shows it can improve measured performance.
+Phase 11 containerizes the API, PostgreSQL, model artifact storage, and monitoring services and verifies startup from a clean Docker environment.

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from time import perf_counter
+from typing import Protocol
 
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -13,6 +14,16 @@ from guardrail_mini.observability.metrics import MODEL_INFERENCE_LATENCY_SECONDS
 MODEL_ID = "patronus-studio/wolf-defender-prompt-injection-small"
 MODEL_REVISION = "cdcdf7d0231d68f39cc3bb1b70f6a2bdfca8ad55"
 MAX_TOKEN_LENGTH = 2048
+
+
+class PromptInjectionRuntime(Protocol):
+    """A loaded prompt-injection scorer that supports startup warm-up."""
+
+    model_version: str
+
+    def score(self, text: str) -> float: ...
+
+    def warm_up(self) -> None: ...
 
 
 class PromptInjectionClassifier:
@@ -80,7 +91,7 @@ class PromptInjectionPolicy:
 
     def __init__(
         self,
-        classifier: PromptInjectionClassifier,
+        classifier: PromptInjectionRuntime,
         threshold: float,
         review_threshold: float | None,
     ) -> None:
@@ -124,7 +135,30 @@ class PromptInjectionPolicy:
         )
 
 
-def load_prompt_injection_classifier(model_dir: Path, device: str) -> PromptInjectionClassifier:
+def load_prompt_injection_classifier(
+    model_dir: Path,
+    device: str,
+    runtime: str = "pytorch",
+    onnx_cache_dir: Path = Path("data/onnx-cache"),
+) -> PromptInjectionRuntime:
+    if runtime == "onnxruntime":
+        from guardrail_mini.models.onnx_runtime import load_onnx_text_classifier
+
+        onnx_classifier = load_onnx_text_classifier(
+            model_dir,
+            onnx_cache_dir,
+            MODEL_ID,
+            MODEL_REVISION,
+            "injection",
+            "softmax",
+            MAX_TOKEN_LENGTH,
+            device,
+        )
+        onnx_classifier.warm_up()
+        return onnx_classifier
+    if runtime != "pytorch":
+        raise ValueError(f"Unsupported model runtime: {runtime!r}.")
+
     classifier = PromptInjectionClassifier(model_dir=model_dir, device=device)
     classifier.warm_up()
     return classifier

@@ -21,6 +21,15 @@ def test_thresholds_can_be_configured_without_a_review_band() -> None:
     assert settings.toxicity_review_threshold is None
 
 
+def test_onnx_runtime_rejects_non_cpu_device() -> None:
+    with pytest.raises(ValidationError, match="supports CPU inference only"):
+        Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            model_runtime="onnxruntime",
+            model_device="cuda",
+        )
+
+
 def test_request_security_limits_are_bounded() -> None:
     settings = Settings(
         _env_file=None,

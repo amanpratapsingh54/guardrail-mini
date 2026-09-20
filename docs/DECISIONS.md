@@ -99,6 +99,15 @@
 - **Trade-off:** Metrics are process-local and need a scrape backend; multi-replica aggregation belongs in Prometheus. The current JSON request log omits exception messages to prevent accidental input disclosure.
 - **Reconsider when:** A deployment requires managed telemetry, audit retention, distributed trace spans, or policy-specific SLOs.
 
+## ONNX Runtime inference backend
+
+- **Problem:** Reduce real CPU inference latency without changing the guardrail decisions.
+- **Options:** Keep the Transformers/PyTorch backend only; export float32 ONNX graphs; or use dynamically quantized INT8 graphs.
+- **Decision:** Keep PyTorch as a supported fallback and select ONNX Runtime CPU in the example environment. At startup, export versioned float32 graphs with PyTorch's Dynamo ONNX exporter from checksum-verified local artifacts, then reuse the derived cache. Do not adopt dynamic INT8 for these models.
+- **Reason:** Paired local measurements found lower warmed single-call score latency for both Transformer classifiers with float32 ONNX. Across fixed benign, hostile, PII, injection, and long-text examples, score drift was negligible and observed decisions matched. INT8 produced a substantial prompt-injection score shift, so it was rejected. See [the Phase 10 profile](performance/phase10-profile.md).
+- **Trade-off:** The two float32 graphs add about 955 MB to local storage, first startup exports them before readiness, and this backend currently runs on CPU only. Profile numbers are single-call local measurements, not API throughput or a capacity guarantee.
+- **Reconsider when:** Target hardware changes, the selected models change, or end-to-end/load testing shows export cost, memory, or inference latency needs a different runtime.
+
 ## Request hardening
 
 - **Problem:** Bound untrusted HTTP input and protect the CPU-bound local inference path from one project consuming all available request capacity.

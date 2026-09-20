@@ -14,7 +14,7 @@ from guardrail_mini.auth.rate_limit import ProjectRateLimiter
 from guardrail_mini.core.config import Settings
 from guardrail_mini.core.errors import GuardrailError
 from guardrail_mini.core.policy_engine import PolicyAction, PolicyRegistry, PolicyResult
-from guardrail_mini.policies.toxicity import ToxicityClassifier
+from guardrail_mini.policies.toxicity import ToxicityRuntime
 
 router = APIRouter(prefix="/v1/guardrails", tags=["guardrails"])
 
@@ -43,15 +43,20 @@ class EvaluateResponse(BaseModel):
     latency_ms: float
 
 
-ModelLoader = Callable[[Settings], ToxicityClassifier]
+ModelLoader = Callable[[Settings], ToxicityRuntime]
 
 
-def load_model_from_settings(settings: Settings) -> ToxicityClassifier:
+def load_model_from_settings(settings: Settings) -> ToxicityRuntime:
     """Load and warm up the local toxicity artifact selected by settings."""
 
     from guardrail_mini.policies.toxicity import load_toxicity_classifier
 
-    return load_toxicity_classifier(settings.toxicity_model_dir, settings.model_device)
+    return load_toxicity_classifier(
+        settings.toxicity_model_dir,
+        settings.model_device,
+        runtime=settings.model_runtime,
+        onnx_cache_dir=settings.onnx_cache_dir,
+    )
 
 
 @router.post("/evaluate", response_model=EvaluateResponse)

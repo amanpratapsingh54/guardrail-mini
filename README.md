@@ -2,7 +2,7 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The first nine phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, and failure-path tests. Phase 10 profiles inference before deciding whether ONNX Runtime offers a measured improvement.
+The first ten phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, failure-path tests, and a profiled ONNX Runtime backend. See the [Phase 10 profile](docs/performance/phase10-profile.md) for measured single-call latency, score parity, and the runtime trade-offs.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
 
@@ -22,7 +22,7 @@ Run these commands from the repository root.
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev,ml,pii]"
+python -m pip install -e ".[dev,ml,pii,onnx]"
 cp .env.example .env
 python -m spacy download en_core_web_sm
 python scripts/download_model.py
@@ -33,7 +33,9 @@ On Windows PowerShell, activate the environment with `.venv\Scripts\Activate.ps1
 
 The two download scripts verify their pinned Hugging Face revisions and Apache-2.0 metadata, then write SHA-256 checksums into each model directory. Presidio and spaCy provide the English PII recognizers; they run locally with email, phone, SSN, credit-card, IP, person, and location checks. The API loads only local model files, verifies every checksum, and performs warm-up inferences before reporting ready. It never downloads a model during a request.
 
-On Apple Silicon, `GUARDRAIL_MODEL_DEVICE=auto` uses Metal (MPS) when available; otherwise it uses CPU. Set `GUARDRAIL_MODEL_DEVICE=cpu` in `.env` to force CPU inference.
+With the PyTorch backend, `GUARDRAIL_MODEL_DEVICE=auto` uses Metal (MPS) when available; otherwise it uses CPU. Set `GUARDRAIL_MODEL_DEVICE=cpu` in `.env` to force CPU inference. ONNX Runtime currently supports CPU only.
+
+The example `.env` selects `GUARDRAIL_MODEL_RUNTIME=onnxruntime`, which runs the two Transformer classifiers through ONNX Runtime's CPU provider. At first startup, the service exports float32 ONNX graphs from the already verified local model artifacts and caches them under `data/onnx-cache/`; subsequent startups reuse the cache. This adds about 955 MB of local graph storage and export time before readiness. Set `GUARDRAIL_MODEL_RUNTIME=pytorch` to use the original PyTorch backend. See the profile for the measured latency and score comparison.
 
 ## Check the API
 
@@ -138,7 +140,7 @@ Then start the API with `python -m guardrail_mini`. On startup it resolves the t
 
 ```text
 src/guardrail_mini/     application, API, policy/model code, and SQLAlchemy schema
-scripts/                model artifact setup scripts
+scripts/                model artifact setup and inference profiling scripts
 tests/                  automated tests
 docs/architecture/      architecture and request-flow notes
 docs/MODEL_REGISTRY.md  MinIO setup and model artifact lifecycle
@@ -146,6 +148,7 @@ docs/DATABASE.md        PostgreSQL setup and migration instructions
 docs/AUTHENTICATION.md  API-key lifecycle and tenant/project scope
 docs/OBSERVABILITY.md  request IDs, structured logs, metrics, and dashboards
 docs/SECURITY.md       request limits, API keys, CORS, and deployment security
+docs/performance/      measured inference runtime comparison
 monitoring/             Prometheus and Grafana provisioning and dashboard
 docs/DECISIONS.md       major implementation choices
 migrations/             Alembic schema revisions

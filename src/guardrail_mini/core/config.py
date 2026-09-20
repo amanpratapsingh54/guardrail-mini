@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,6 +34,8 @@ class Settings(BaseSettings):
     prompt_injection_review_threshold: float | None = Field(default=0.55, ge=0.0, le=1.0)
     prompt_injection_model_dir: Path = Path("models/prompt-injection/v1")
     model_device: str = "auto"
+    model_runtime: Literal["pytorch", "onnxruntime"] = "pytorch"
+    onnx_cache_dir: Path = Path("data/onnx-cache")
 
     @model_validator(mode="after")
     def validate_review_thresholds(self) -> "Settings":
@@ -60,6 +63,12 @@ class Settings(BaseSettings):
             )
         if not self.minio_bucket or "/" in self.minio_bucket:
             raise ValueError("The MinIO bucket must be a non-empty bucket name without slashes.")
+        return self
+
+    @model_validator(mode="after")
+    def validate_model_runtime(self) -> "Settings":
+        if self.model_runtime == "onnxruntime" and self.model_device not in {"auto", "cpu"}:
+            raise ValueError("The ONNX Runtime backend currently supports CPU inference only.")
         return self
 
     model_config = SettingsConfigDict(

@@ -31,6 +31,14 @@ class ToxicityScorer(Protocol):
     def score(self, text: str) -> ToxicityScore: ...
 
 
+class ToxicityRuntime(ToxicityScorer, Protocol):
+    """A loaded toxicity scorer that can be warmed before readiness."""
+
+    model_version: str
+
+    def warm_up(self) -> None: ...
+
+
 def verify_model_artifact(model_dir: Path) -> dict[str, object]:
     """Validate the local toxicity artifact before the tokenizer or model is loaded."""
 
@@ -99,8 +107,45 @@ class ToxicityClassifier:
         self.score("This is a neutral sentence used to warm up the classifier.")
 
 
-def load_toxicity_classifier(model_dir: Path, device: str) -> ToxicityClassifier:
+def load_toxicity_classifier(
+    model_dir: Path,
+    device: str,
+    runtime: str = "pytorch",
+    onnx_cache_dir: Path = Path("data/onnx-cache"),
+) -> ToxicityRuntime:
     """Load local model files; this function never downloads model artifacts."""
+
+    if runtime == "onnxruntime":
+        from guardrail_mini.models.onnx_runtime import load_onnx_text_classifier
+
+        onnx_classifier = load_onnx_text_classifier(
+            model_dir,
+            onnx_cache_dir,
+            MODEL_ID,
+            MODEL_REVISION,
+            "toxic",
+            "sigmoid",
+            MAX_TOKEN_LENGTH,
+            device,
+        )
+
+        class OnnxToxicityScorer:
+            model_version = onnx_classifier.model_version
+
+            def score(self, text: str) -> ToxicityScore:
+                return ToxicityScore(
+                    score=onnx_classifier.score(text),
+                    model_version=self.model_version,
+                )
+
+            def warm_up(self) -> None:
+                onnx_classifier.warm_up()
+
+        scorer = OnnxToxicityScorer()
+        scorer.warm_up()
+        return scorer
+    if runtime != "pytorch":
+        raise ValueError(f"Unsupported model runtime: {runtime!r}.")
 
     classifier = ToxicityClassifier(model_dir=model_dir, device=device)
     classifier.warm_up()

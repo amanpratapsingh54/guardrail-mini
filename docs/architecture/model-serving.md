@@ -16,10 +16,11 @@ flowchart TD
     Resolve --> Cache
     Local -. optional local mode .-> Cache
     Cache --> Checksum[Verify manifest and file checksums]
-    Checksum --> Load[Load classifiers and local PII recognizers]
+    Checksum --> Convert[Use PyTorch weights or export/cache float32 ONNX graph]
+    Convert --> Load[Load classifiers and local PII recognizers]
     Load --> Warmup[Warm-up all policies]
     Warmup --> Ready[Mark service ready]
     Ready --> Requests[Serve inference requests]
 ```
 
-The inference request path does not call PostgreSQL, MinIO, or Hugging Face. MinIO community server is pinned for local evaluation; see [the model-registry guide](../MODEL_REGISTRY.md) for its current upstream status and startup instructions. Model runtime resource use will be measured in the later profiling and load-test phases.
+The inference request path does not call PostgreSQL, MinIO, or Hugging Face. `GUARDRAIL_MODEL_RUNTIME=onnxruntime` uses ONNX Runtime's CPU provider for the two Transformer classifiers; the other option, `pytorch`, uses Transformers directly and can select MPS when available. When ONNX is selected, startup exports a graph from the verified local source artifacts if the versioned cache is absent, warms it, and only then marks the API ready. The generated graph cache is a derived artifact under `data/onnx-cache/`; the source weights and their checksum manifest remain unchanged. See [the Phase 10 profile](../performance/phase10-profile.md) for measurements. MinIO community server is pinned for local evaluation; see [the model-registry guide](../MODEL_REGISTRY.md) for its current upstream status and startup instructions.
