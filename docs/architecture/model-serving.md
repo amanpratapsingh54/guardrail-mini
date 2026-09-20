@@ -1,8 +1,8 @@
 # Model Serving
 
-## Planned lifecycle
+## Current local lifecycle
 
-Model artifacts will be versioned and loaded before the API accepts inference traffic. Startup will validate artifact checksums, initialize each configured policy implementation, and run a small warm-up inference. `/ready` will remain unavailable if required models fail to load.
+The download script fetches only the model, tokenizer, and configuration files for a pinned Hugging Face revision. It writes a manifest with the resolved revision, license, framework, and SHA-256 checksums. Startup validates every listed checksum, loads the tokenizer and model from local files, runs a warm-up inference, and then reports ready. The request handler only uses the loaded in-memory classifier.
 
 ```mermaid
 flowchart TD
@@ -14,4 +14,4 @@ flowchart TD
     Ready --> Requests[Serve inference requests]
 ```
 
-The current Phase 1 implementation has no model loader. The serving lifecycle will be implemented in later phases and updated here with the selected framework, model license, versions, and measured resource use.
+Phase 6 will move artifact storage from the local `models/` directory to MinIO. The selected framework and license are recorded in [the decision log](../DECISIONS.md); resource use will be measured in later profiling and load-test phases.

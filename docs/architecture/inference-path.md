@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-The Phase 1 API has no inference endpoint yet. The `/ready` route becomes ready after the FastAPI startup hook completes.
+The Phase 2 API validates a 1–10,000 character input, runs the loaded toxicity classifier, compares its `toxic` probability to a configurable threshold, and returns the score, action, model revision, request ID, and handler latency. `/ready` remains unavailable until the model is checksum-verified and warmed up.
 
 ## Planned request lifecycle
 
@@ -10,7 +10,7 @@ The Phase 1 API has no inference endpoint yet. The `/ready` route becomes ready 
 sequenceDiagram
     participant C as Client
     participant A as FastAPI
-    participant K as API key cache
+    participant K as API key cache (later phase)
     participant P as Policy engine
     participant M as Local model
     C->>A: POST /v1/guardrails/evaluate

@@ -21,10 +21,13 @@ Inspected on 2026-09-19 before creating the application files.
 - [x] Project-local virtual environment created at `.venv/`.
 - [x] Runtime and development dependencies installed in `.venv/`.
 - [x] Isolated Git repository created in the project directory.
-- [ ] Install the Phase 2 ML dependencies in `.venv/`.
-- [ ] Allow access to Hugging Face to download the selected model artifact before running Phase 2 inference.
+- [x] Install the Phase 2 ML dependencies in `.venv/`.
+- [x] Pin the model revision and verify its public license metadata before downloading it.
+- [x] Download the selected model artifact and write its checksum manifest.
 
 Docker, PostgreSQL, and MinIO are not prerequisites for Phases 1–3. Docker Desktop must be started before the later container-based infrastructure phases.
+
+Although macOS reports Metal support, the installed PyTorch 2.14.0 runtime reports `torch.backends.mps.is_available() == False`; local inference currently uses CPU. The implementation selects MPS only when PyTorch confirms it is available.
 
 ## Phase 1 — Architecture and skeleton
 
@@ -38,6 +41,15 @@ Verification on Python 3.12.10:
 - `mypy src tests`: passed.
 - Local Uvicorn startup: `/health`, `/live`, `/ready`, and `/openapi.json` returned HTTP 200.
 
-## Next
+## Phase 2 — First real policy
 
-Phase 2 will add one real toxicity classifier, load it before serving requests, and expose its score, threshold, and decision through an inference endpoint.
+**Status: complete.** The API has a toxicity evaluation endpoint. Startup loads the pinned local model, verifies its manifest checksums, and warms it up before readiness. The model artifact is present locally under the ignored `models/` directory. Real inference tests verified that a benign example returns `ALLOW` and a hostile example returns `BLOCK` at the configured `0.80` threshold.
+
+Model: [`unitary/toxic-bert`](https://huggingface.co/unitary/toxic-bert/tree/4d6c22e74ba2fdd26bc4f7238f50766b045a0d94), Apache-2.0, revision `4d6c22e74ba2fdd26bc4f7238f50766b045a0d94`.
+
+Verification on Python 3.12.10:
+
+- `pytest`: 3 passed, including real local model inference through the API.
+- `ruff check .` and `ruff format --check .`: passed.
+- `mypy src tests scripts`: passed.
+- Pinned model manifest validation: passed.

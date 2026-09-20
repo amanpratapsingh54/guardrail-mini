@@ -22,8 +22,8 @@
 
 - **Problem:** Establish a real policy end-to-end before expanding the policy engine.
 - **Options:** Start with toxicity, PII, or prompt-injection detection.
-- **Decision:** Start with [`unitary/toxic-bert`](https://huggingface.co/unitary/toxic-bert) in Phase 2 and use its `toxic` output as the policy score.
-- **Reason:** The Hugging Face model card documents a BERT multi-label toxicity classifier, lists an Apache-2.0 license, and provides local Transformers usage. It is a concrete real-model path with no paid API.
+- **Decision:** Use [`unitary/toxic-bert`](https://huggingface.co/unitary/toxic-bert/tree/4d6c22e74ba2fdd26bc4f7238f50766b045a0d94) at immutable revision `4d6c22e74ba2fdd26bc4f7238f50766b045a0d94` and use its `toxic` sigmoid output as the policy score.
+- **Reason:** The Hugging Face model card documents a BERT multi-label toxicity classifier, lists an Apache-2.0 license, and provides local Transformers usage. The downloader verifies the selected revision and license before saving files locally.
 - **Trade-off:** The weights are about 438 MB and the model has about 0.1B parameters, so startup and memory use need to be measured. The model card also warns that its Hugging Face version can differ from Detoxify outputs and notes potential bias around profanity and identity terms.
 - **Reconsider when:** Local profiling or evaluation shows a maintained smaller model provides a better measured accuracy/latency trade-off. The model card's source and limitations are recorded in the docs before this decision is used for a public demo.
 

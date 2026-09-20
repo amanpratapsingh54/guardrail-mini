@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-Phase 1 contains a FastAPI process, validated environment settings, and health, liveness, and readiness routes. It does not yet load models or connect to external services.
+Phase 2 contains a FastAPI process, validated environment settings, health routes, and a toxicity evaluation route. Startup verifies and loads a pinned local model artifact, warms the classifier, and only then reports readiness. The service does not yet connect to a database or external artifact store.
 
 ## Target initial architecture
 
