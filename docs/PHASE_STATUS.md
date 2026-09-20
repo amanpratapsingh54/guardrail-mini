@@ -219,7 +219,7 @@ Verification:
 
 ## Phase 15 — Final validation
 
-**Status: local walkthrough complete.** Reviewed the repository as a new engineer following only the README, linked database and first-key setup next to the API request example, updated architecture notes to match the verified local stack, and added the cloud deployment walkthrough. The repository has no configured Git remote, so the clone step is limited to the local checkout; remote GitHub Actions and public API checks remain pending account setup.
+**Status: local walkthrough complete.** Cloned the committed repository into a clean temporary checkout and followed the README as the entry point. All 18 local README links resolve. Added database and first-key setup links next to the API request example, updated architecture notes to match the verified local stack, and added the cloud deployment walkthrough. The repository has no configured Git remote, so an external clone, remote GitHub Actions run, and public API check remain pending account setup.
 
 Verification:
 
