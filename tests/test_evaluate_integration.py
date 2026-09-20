@@ -116,6 +116,7 @@ async def test_real_policy_inference_and_threshold_decisions(tmp_path: Path) -> 
                 json={"input": "hello", "policies": ["unknown"]},
                 headers=headers,
             )
+            metrics = await client.get("/metrics")
     engine.dispose()
 
     assert policy_list.status_code == 200
@@ -137,9 +138,13 @@ async def test_real_policy_inference_and_threshold_decisions(tmp_path: Path) -> 
     assert unknown_policy.status_code == 404
     assert unknown_policy.json()["error"]["code"] == "POLICY_NOT_FOUND"
     assert unknown_policy.json()["error"]["request_id"].startswith("req_")
+    assert "guardrail_policy_latency_seconds_bucket" in metrics.text
+    assert "guardrail_model_inference_latency_seconds_bucket" in metrics.text
+    assert "guardrail_policy_evaluations_total" in metrics.text
     safe_result = safe_response.json()
     toxic_result = toxic_response.json()
     assert safe_result["action"] == "ALLOW"
+    assert safe_response.headers["X-Request-ID"] == safe_result["request_id"]
     assert toxic_result["action"] == "BLOCK"
     assert 0.0 <= safe_result["policy_results"]["toxicity"]["score"] < 0.8
     assert toxic_result["policy_results"]["toxicity"]["score"] >= 0.8

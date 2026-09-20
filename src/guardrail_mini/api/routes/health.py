@@ -1,6 +1,7 @@
 """Health, liveness, and readiness endpoints."""
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
 
 router = APIRouter(tags=["health"])
@@ -34,3 +35,10 @@ def ready(request: Request) -> StatusResponse:
             detail="Application startup is not complete",
         )
     return StatusResponse(status="ready")
+
+
+@router.get("/metrics", include_in_schema=False)
+def metrics() -> Response:
+    """Expose Prometheus metrics in the standard text exposition format."""
+
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)

@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
+from time import perf_counter
 from typing import Protocol
 
 from guardrail_mini.core.errors import GuardrailError
+from guardrail_mini.observability.metrics import POLICY_EVALUATIONS_TOTAL, POLICY_LATENCY_SECONDS
 
 
 class PolicyAction(StrEnum):
@@ -118,6 +120,15 @@ class PolicyRegistry:
                     "POLICY_DISABLED",
                     f"Policy '{policy_id}' is disabled.",
                 )
-            results.append(policy.evaluate(text))
+            started = perf_counter()
+            try:
+                result = policy.evaluate(text)
+            finally:
+                POLICY_LATENCY_SECONDS.labels(policy_id=policy_id).observe(perf_counter() - started)
+            POLICY_EVALUATIONS_TOTAL.labels(
+                policy_id=policy_id,
+                action=result.action.value,
+            ).inc()
+            results.append(result)
 
         return results, aggregate_decisions(results, strategy)

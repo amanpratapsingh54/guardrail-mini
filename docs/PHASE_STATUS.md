@@ -129,6 +129,18 @@ Verification:
 
 See [AUTHENTICATION.md](AUTHENTICATION.md) for first-key setup, endpoint examples, expiration, and cache behavior.
 
+## Phase 8 — Observability
+
+**Status: complete.** Added response/request correlation IDs, JSON request and error logs with an explicit field allowlist, request/policy/model latency histograms, decision/error counters, `/metrics`, and provisioned Prometheus/Grafana configurations with an overview dashboard. Request bodies, query strings, credentials, and detected PII values are not logged. Metrics use route templates and stable IDs/codes rather than input-derived labels.
+
+The Prometheus target and Grafana datasource/dashboard provisioning are ready for the Docker Compose services in Phase 9. Until then, `/metrics` can be inspected directly from a locally running API.
+
+Verification:
+
+- `pytest`: 32 passed. Tests cover accepted/generated request IDs, matching IDs in evaluation responses, invalid-body privacy, safe unexpected-error responses, the JSON log allowlist, metric exposition, and real-model policy/inference observations.
+- `ruff check .`, `ruff format --check .`, and `mypy src tests scripts migrations`: passed.
+- Prometheus and Grafana YAML provisioning files parse, and the Grafana dashboard JSON validates.
+
 ## Next
 
-Phase 8 adds structured logs, request IDs, Prometheus metrics, and a Grafana dashboard.
+Phase 9 wires the API, PostgreSQL, artifact storage, Prometheus, and Grafana into a reproducible Docker Compose environment.

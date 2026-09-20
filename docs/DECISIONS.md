@@ -89,3 +89,12 @@
 - **Reason:** Random keys have enough entropy for a fast SHA-256 lookup without a slow password-hashing function. Project scoping keeps key creation and revocation inside one tenant boundary. The short cache avoids database work on every model request without adding Redis.
 - **Trade-off:** A different worker may honor a cached key until the TTL expires after revocation. Initial project/key bootstrapping requires a trusted shell with database access.
 - **Reconsider when:** The service has many replicas, tighter revocation guarantees, or rotation requirements that justify shared cache invalidation or an external identity provider.
+
+## Privacy-safe observability
+
+- **Problem:** Correlate API behavior and measure request, policy, model, and error latency without recording user text or creating unbounded metric labels.
+- **Options:** Add plain-text logs and ad hoc timings, use JSON logs with Prometheus client metrics, or send all telemetry to an external service.
+- **Decision:** Use an allowlisted JSON formatter, propagate a validated `X-Request-ID`, and expose Prometheus counters and histograms at `/metrics`. Label metrics with method, route template, action, policy ID, and stable error code. Provision a local Grafana dashboard.
+- **Reason:** The initial service remains self-contained while operators can correlate an evaluation's response ID with a request log and inspect latency/decision trends. An explicit log field allowlist prevents request input, query parameters, and credentials from being logged accidentally.
+- **Trade-off:** Metrics are process-local and need a scrape backend; multi-replica aggregation belongs in Prometheus. The current JSON request log omits exception messages to prevent accidental input disclosure.
+- **Reconsider when:** A deployment requires managed telemetry, audit retention, distributed trace spans, or policy-specific SLOs.

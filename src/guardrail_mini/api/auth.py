@@ -31,4 +31,7 @@ def get_authenticated_project(
             "AUTHENTICATION_FAILED",
             "A valid Bearer API key is required.",
         )
-    return authenticator.authenticate(credentials.credentials)
+    principal = authenticator.authenticate(credentials.credentials)
+    request.state.tenant_id = principal.tenant_id
+    request.state.project_id = principal.project_id
+    return principal

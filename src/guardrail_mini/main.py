@@ -1,13 +1,19 @@
 """FastAPI application entry point."""
 
+import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from re import fullmatch
+from time import perf_counter
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 
 from guardrail_mini import __version__
 from guardrail_mini.api.routes.api_keys import router as api_keys_router
@@ -22,6 +28,12 @@ from guardrail_mini.core.policy_engine import PolicyRegistry
 from guardrail_mini.db.models import ApiKey
 from guardrail_mini.db.session import create_database_engine, create_session_factory
 from guardrail_mini.models.registry import resolve_model_directories
+from guardrail_mini.observability.logging import configure_logging, request_id_context
+from guardrail_mini.observability.metrics import (
+    ERRORS_TOTAL,
+    REQUEST_DURATION_SECONDS,
+    REQUESTS_TOTAL,
+)
 from guardrail_mini.policies.pii import PiiPolicy, load_pii_detector
 from guardrail_mini.policies.prompt_injection import (
     PromptInjectionPolicy,
@@ -38,6 +50,7 @@ def create_app(
 
     app_settings = settings or get_settings()
     resolve_model = model_loader or load_model_from_settings
+    app_logger = configure_logging(app_settings.log_level)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -110,12 +123,87 @@ def create_app(
         lifespan=lifespan,
     )
 
+    @application.middleware("http")
+    async def add_request_observability(
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        supplied_request_id = request.headers.get("X-Request-ID", "")
+        request_id = (
+            supplied_request_id
+            if fullmatch(r"[A-Za-z0-9._-]{1,64}", supplied_request_id)
+            else f"req_{uuid4().hex}"
+        )
+        request.state.request_id = request_id
+        request_token = request_id_context.set(request_id)
+        started = perf_counter()
+        status_code = 500
+        try:
+            try:
+                response = await call_next(request)
+                status_code = response.status_code
+            except Exception as error:
+                ERRORS_TOTAL.labels(error_code="INTERNAL_ERROR").inc()
+                app_logger.error(
+                    "internal_error",
+                    extra={
+                        "event": "internal_error",
+                        "request_id": request_id,
+                        "error_code": "INTERNAL_ERROR",
+                        "exception_type": type(error).__name__,
+                    },
+                )
+                response = JSONResponse(
+                    status_code=500,
+                    content={
+                        "error": {
+                            "code": "INTERNAL_ERROR",
+                            "message": "An internal error occurred.",
+                            "request_id": request_id,
+                        }
+                    },
+                )
+            response.headers["X-Request-ID"] = request_id
+            return response
+        finally:
+            route = request.scope.get("route")
+            route_path = getattr(route, "path", "unmatched")
+            latency_seconds = perf_counter() - started
+            REQUESTS_TOTAL.labels(
+                method=request.method,
+                route=route_path,
+                status_code=str(status_code),
+            ).inc()
+            REQUEST_DURATION_SECONDS.labels(method=request.method, route=route_path).observe(
+                latency_seconds
+            )
+            app_logger.log(
+                logging.WARNING if status_code >= 400 else logging.INFO,
+                "http_request_completed",
+                extra={
+                    "event": "http_request_completed",
+                    "request_id": request_id,
+                    "tenant_id": getattr(request.state, "tenant_id", None),
+                    "project_id": getattr(request.state, "project_id", None),
+                    "method": request.method,
+                    "path": route_path,
+                    "status_code": status_code,
+                    "latency_ms": round(latency_seconds * 1000, 3),
+                },
+            )
+            request_id_context.reset(request_token)
+
     @application.exception_handler(GuardrailError)
     async def guardrail_error_handler(
         request: Request,
         error: GuardrailError,
     ) -> JSONResponse:
         request_id = getattr(request.state, "request_id", f"req_{uuid4().hex}")
+        ERRORS_TOTAL.labels(error_code=error.code).inc()
+        app_logger.warning(
+            "guardrail_error",
+            extra={"event": "guardrail_error", "request_id": request_id, "error_code": error.code},
+        )
         return JSONResponse(
             status_code=error.status_code,
             content={
@@ -125,6 +213,39 @@ def create_app(
                     "request_id": request_id,
                 }
             },
+        )
+
+    @application.exception_handler(RequestValidationError)
+    async def request_validation_error_handler(
+        request: Request,
+        error: RequestValidationError,
+    ) -> JSONResponse:
+        del error
+        request_id = getattr(request.state, "request_id", f"req_{uuid4().hex}")
+        ERRORS_TOTAL.labels(error_code="INVALID_REQUEST").inc()
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "Request validation failed.",
+                    "request_id": request_id,
+                }
+            },
+        )
+
+    @application.exception_handler(HTTPException)
+    async def http_error_handler(request: Request, error: HTTPException) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", f"req_{uuid4().hex}")
+        code = "MODEL_NOT_READY" if error.status_code == 503 else "HTTP_ERROR"
+        ERRORS_TOTAL.labels(error_code=code).inc()
+        message = (
+            "The application is not ready." if code == "MODEL_NOT_READY" else "HTTP request failed."
+        )
+        return JSONResponse(
+            status_code=error.status_code,
+            content={"error": {"code": code, "message": message, "request_id": request_id}},
+            headers=error.headers,
         )
 
     application.include_router(health_router)

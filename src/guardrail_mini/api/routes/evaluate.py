@@ -69,7 +69,7 @@ def evaluate(
         )
 
     results, action = registry.evaluate(body.input, body.policies)
-    request_id = f"req_{uuid4().hex}"
+    request_id = getattr(request.state, "request_id", f"req_{uuid4().hex}")
     return EvaluateResponse(
         request_id=request_id,
         tenant_id=principal.tenant_id,

@@ -1,6 +1,7 @@
 """Hybrid PII detection using Presidio patterns and spaCy named entities."""
 
 from importlib.metadata import version
+from time import perf_counter
 
 from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer, RecognizerRegistry
 from presidio_analyzer.nlp_engine import NlpEngineProvider
@@ -13,6 +14,7 @@ from presidio_analyzer.predefined_recognizers import (
 )
 
 from guardrail_mini.core.policy_engine import PolicyAction, PolicyMetadata, PolicyResult
+from guardrail_mini.observability.metrics import MODEL_INFERENCE_LATENCY_SECONDS
 
 
 class PiiDetector:
@@ -95,7 +97,13 @@ class PiiPolicy:
         )
 
     def evaluate(self, text: str) -> PolicyResult:
-        score, categories = self._detector.score(text)
+        started = perf_counter()
+        try:
+            score, categories = self._detector.score(text)
+        finally:
+            MODEL_INFERENCE_LATENCY_SECONDS.labels(policy_id=self.metadata.id).observe(
+                perf_counter() - started
+            )
         if score >= self._threshold:
             action = PolicyAction.BLOCK
         elif self._review_threshold is not None and score >= self._review_threshold:

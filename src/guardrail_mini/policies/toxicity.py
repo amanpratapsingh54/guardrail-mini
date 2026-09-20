@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Protocol
 
 import torch
@@ -9,6 +10,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from guardrail_mini.core.policy_engine import PolicyAction, PolicyMetadata, PolicyResult
 from guardrail_mini.models.artifacts import verify_model_artifact as verify_artifact
+from guardrail_mini.observability.metrics import MODEL_INFERENCE_LATENCY_SECONDS
 
 MODEL_ID = "unitary/toxic-bert"
 MODEL_REVISION = "4d6c22e74ba2fdd26bc4f7238f50766b045a0d94"
@@ -129,7 +131,13 @@ class ToxicityPolicy:
         )
 
     def evaluate(self, text: str) -> PolicyResult:
-        prediction = self._classifier.score(text)
+        started = perf_counter()
+        try:
+            prediction = self._classifier.score(text)
+        finally:
+            MODEL_INFERENCE_LATENCY_SECONDS.labels(policy_id=self.metadata.id).observe(
+                perf_counter() - started
+            )
         if prediction.score >= self._threshold:
             action = PolicyAction.BLOCK
         elif self._review_threshold is not None and prediction.score >= self._review_threshold:

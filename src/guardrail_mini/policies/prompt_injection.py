@@ -1,12 +1,14 @@
 """Prompt-injection classifier and policy backed by a pinned local model."""
 
 from pathlib import Path
+from time import perf_counter
 
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from guardrail_mini.core.policy_engine import PolicyAction, PolicyMetadata, PolicyResult
 from guardrail_mini.models.artifacts import verify_model_artifact
+from guardrail_mini.observability.metrics import MODEL_INFERENCE_LATENCY_SECONDS
 
 MODEL_ID = "patronus-studio/wolf-defender-prompt-injection-small"
 MODEL_REVISION = "cdcdf7d0231d68f39cc3bb1b70f6a2bdfca8ad55"
@@ -99,7 +101,13 @@ class PromptInjectionPolicy:
         )
 
     def evaluate(self, text: str) -> PolicyResult:
-        score = self._classifier.score(text)
+        started = perf_counter()
+        try:
+            score = self._classifier.score(text)
+        finally:
+            MODEL_INFERENCE_LATENCY_SECONDS.labels(policy_id=self.metadata.id).observe(
+                perf_counter() - started
+            )
         if score >= self._threshold:
             action = PolicyAction.BLOCK
         elif self._review_threshold is not None and score >= self._review_threshold:
