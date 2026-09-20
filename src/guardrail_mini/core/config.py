@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, model_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "INFO"
     database_url: str | None = None
+    minio_endpoint_url: AnyHttpUrl | None = None
+    minio_access_key: str | None = None
+    minio_secret_key: SecretStr | None = None
+    minio_bucket: str = "guardrail-models"
+    artifact_cache_dir: Path = Path("data/model-cache")
     toxicity_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     toxicity_review_threshold: float | None = Field(default=0.55, ge=0.0, le=1.0)
     toxicity_model_dir: Path = Path("models/toxicity/v1")
@@ -35,6 +40,23 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"The {policy_id} review threshold must not exceed its block threshold."
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_artifact_store(self) -> "Settings":
+        configured = (
+            self.minio_endpoint_url is not None,
+            self.minio_access_key is not None,
+            self.minio_secret_key is not None,
+        )
+        if any(configured) and not all(configured):
+            raise ValueError("Configure the MinIO endpoint, access key, and secret key together.")
+        if self.minio_endpoint_url is not None and self.database_url is None:
+            raise ValueError(
+                "GUARDRAIL_DATABASE_URL is required when MinIO artifact storage is enabled."
+            )
+        if not self.minio_bucket or "/" in self.minio_bucket:
+            raise ValueError("The MinIO bucket must be a non-empty bucket name without slashes.")
         return self
 
     model_config = SettingsConfigDict(

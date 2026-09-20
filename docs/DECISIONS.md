@@ -71,3 +71,12 @@
 - **Reason:** PostgreSQL provides relational constraints for tenant/project ownership, unique credentials, policy references, and model version identity. Alembic keeps schema changes reviewable and reproducible. The synchronous session API fits the current synchronous model inference routes.
 - **Trade-off:** A PostgreSQL service is an additional local dependency. The current inference registry remains cached in process; database-backed API-key authentication and startup metadata loading are wired in subsequent phases.
 - **Reconsider when:** Measured control-plane access or operational requirements call for async database access or a separate configuration service.
+
+## Model artifact storage
+
+- **Problem:** Store immutable model releases outside the application image and verify them before serving inference.
+- **Options:** Keep models only in the local filesystem, adopt MinIO-specific SDK calls, or store versioned S3 objects and use the generic S3 API.
+- **Decision:** Use MinIO for local S3-compatible evaluation and `boto3` for object operations. Store each release beneath `models/{model_id}/{version}/`, enable bucket versioning, and write model ID, version, framework, S3 URI, and manifest SHA-256 to PostgreSQL. At startup the API resolves exact records, fetches missing files to a local cache, verifies all hashes, then loads and warms the models.
+- **Reason:** S3 API compatibility keeps the application independent of the local server and allows managed S3 for deployment. The model cache avoids object-store calls on the inference path. PostgreSQL ties the selected release to a checksummed manifest.
+- **Trade-off:** The local MinIO server is a separate process and stores root credentials in ignored `.env` for this single-user demo. As of September 2026, MinIO's upstream community server repository is archived and its Homebrew formula is deprecated, so this pinned AGPL-3.0 community build is a local evaluation dependency, not a new production recommendation. See [MinIO upstream](https://github.com/minio/minio) and the [Homebrew formula](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/m/minio.rb).
+- **Reconsider when:** Deploying publicly; use a maintained managed S3 service and workload identity or narrowly scoped credentials.

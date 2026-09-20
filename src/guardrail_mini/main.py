@@ -15,6 +15,7 @@ from guardrail_mini.api.routes.policies import router as policies_router
 from guardrail_mini.core.config import Settings, get_settings
 from guardrail_mini.core.errors import GuardrailError
 from guardrail_mini.core.policy_engine import PolicyRegistry
+from guardrail_mini.models.registry import resolve_model_directories
 from guardrail_mini.policies.pii import PiiPolicy, load_pii_detector
 from guardrail_mini.policies.prompt_injection import (
     PromptInjectionPolicy,
@@ -36,11 +37,18 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = app_settings
         app.state.ready = False
-        classifier = resolve_model(app_settings)
+        model_directories = resolve_model_directories(app_settings)
+        model_settings = app_settings.model_copy(
+            update={
+                "toxicity_model_dir": model_directories["toxicity"],
+                "prompt_injection_model_dir": model_directories["prompt_injection"],
+            }
+        )
+        classifier = resolve_model(model_settings)
         pii_detector = load_pii_detector()
         prompt_injection_classifier = load_prompt_injection_classifier(
-            app_settings.prompt_injection_model_dir,
-            app_settings.model_device,
+            model_settings.prompt_injection_model_dir,
+            model_settings.model_device,
         )
         app.state.policy_registry = PolicyRegistry(
             [

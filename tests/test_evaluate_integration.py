@@ -23,7 +23,8 @@ def anyio_backend() -> str:
 
 @pytest.mark.anyio
 async def test_real_policy_inference_and_threshold_decisions() -> None:
-    settings = Settings(
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
         toxicity_model_dir=Path("models/toxicity/v1"),
         prompt_injection_model_dir=Path("models/prompt-injection/v1"),
         model_device="cpu",

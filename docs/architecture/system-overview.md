@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-Phase 5 contains a FastAPI process, validated environment settings, health routes, a policy catalog, a policy registry, `ANY_BLOCK` aggregation, and toxicity, PII, and prompt-injection policies. Startup verifies and loads two pinned local Transformer artifacts, initializes Presidio and the local spaCy NER model, warms every implementation, and only then reports readiness. SQLAlchemy models and an Alembic migration define PostgreSQL tenant, project, API-key, policy, and model-version records; API authentication and database-backed runtime configuration are wired in later phases.
+Phase 6 contains a FastAPI process, validated environment settings, health routes, a policy catalog, a policy registry, `ANY_BLOCK` aggregation, and toxicity, PII, and prompt-injection policies. Startup resolves versioned Transformer artifact metadata from PostgreSQL, retrieves missing files from MinIO using the S3 API, verifies manifest/file checksums, initializes the local NLP pipeline, warms every implementation, and only then reports readiness. PostgreSQL also defines tenant, project, API-key, and policy configuration records; API-key authentication is wired in Phase 7.
 
 ## Target initial architecture
 

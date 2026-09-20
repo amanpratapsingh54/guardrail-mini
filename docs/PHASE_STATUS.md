@@ -99,6 +99,21 @@ Verification on Python 3.12.10:
 - PostgreSQL 16.15 on macOS: Alembic upgrade/current/check/downgrade/re-upgrade passed; `alembic check` detected no schema drift.
 - PostgreSQL ORM transaction: tenant/project, hashed key metadata, policy override, and JSON model metrics inserted and queried successfully, then rolled back.
 
+## Phase 6 — Model registry
+
+**Status: complete.** Added an S3-compatible storage client, idempotent model upload and PostgreSQL registration, bucket versioning, local MinIO launcher, and startup retrieval into an ignored cache. The API requires an exact database registry row for each pinned model when MinIO mode is enabled. It checks the database's manifest digest and every manifest file checksum before loading models and warming inference. The existing local Hugging Face path remains available when MinIO settings are absent.
+
+MinIO community server is used for local evaluation only. Its upstream repository was archived in April 2026, so the project uses a pinned source build and standard S3 API; managed S3 is preferred for deployment. See [MODEL_REGISTRY.md](MODEL_REGISTRY.md) and the [decision log](DECISIONS.md).
+
+Verification on Python 3.12.10 and macOS arm64:
+
+- `pytest`: 27 passed, including MinIO configuration validation, S3 URI scoping, and manifest path safety.
+- `ruff check .`, `ruff format --check .`, and `mypy src tests scripts migrations`: passed.
+- MinIO `RELEASE.2025-10-15T17-29-55Z` source build with `CGO_ENABLED=0`: started locally after the Homebrew binary's CPU probe crashed.
+- Uploaded both pinned models to the versioned bucket and registered both PostgreSQL rows. Re-upload is checksum-idempotent.
+- API lifespan fetched artifacts from MinIO, validated checksums, loaded and warmed the real classifiers; a three-policy benign sample returned `ALLOW`, and a prompt-injection sample returned `BLOCK`.
+- PostgreSQL registry migrations and ORM persistence were verified in Phase 5.
+
 ## Next
 
-Phase 6 adds MinIO as the local S3-compatible model artifact registry and loads models from checksum-verified versioned artifact paths before serving.
+Phase 7 adds bearer API-key creation, hashing, authentication, revocation, expiration, and project-scoped request context.

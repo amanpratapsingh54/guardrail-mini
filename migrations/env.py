@@ -16,8 +16,8 @@ if config.config_file_name is not None:
 
 database_url = (
     os.getenv("GUARDRAIL_DATABASE_URL")
-    or get_settings().database_url
     or config.attributes.get("database_url")
+    or get_settings().database_url
 )
 if not isinstance(database_url, str) or not database_url:
     raise RuntimeError("Set GUARDRAIL_DATABASE_URL in .env or the process environment.")

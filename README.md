@@ -2,7 +2,7 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The current implementation is **Phase 5: three local guardrail policies and a PostgreSQL control-plane schema**. It includes toxicity classification, hybrid PII detection, prompt-injection classification, request-selected policies, `ANY_BLOCK` aggregation, SQLAlchemy records for tenants, projects, policy configuration, API keys, and model versions, plus an Alembic migration. API-key enforcement, MinIO, observability, and deployment are later phases.
+The current implementation is **Phase 6: three guardrail policies, PostgreSQL control-plane metadata, and MinIO model artifacts**. It includes toxicity classification, hybrid PII detection, prompt-injection classification, request-selected policies, `ANY_BLOCK` aggregation, SQLAlchemy records for tenants, projects, policy configuration, API keys, and model versions, plus checksum-verified S3-compatible artifact upload and startup loading. API-key enforcement, observability, and deployment are later phases.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
 
@@ -87,6 +87,24 @@ docker exec -it guardrail-postgres psql -U guardrail -d guardrail -c '\\dt'
 
 The migration creates tenant and project ownership, API-key hash/status fields, global policy metadata, per-project policy overrides, and versioned model metadata. The raw API key is not a database field. Detailed PostgreSQL setup, migration, inspection, and development reset steps are in [docs/DATABASE.md](docs/DATABASE.md).
 
+## MinIO model artifacts
+
+MinIO is used as a local S3-compatible artifact store. The current community server repository is archived; this project uses a pinned local build for evaluation and the generic S3 API, with managed S3 intended for public deployment. The source build, local credentials, bucket layout, upload command, startup loading, checksum validation, and cache behavior are documented in [docs/MODEL_REGISTRY.md](docs/MODEL_REGISTRY.md).
+
+After configuring PostgreSQL and the MinIO variables in `.env`, start MinIO in one terminal:
+
+```bash
+python scripts/run_minio_dev.py
+```
+
+From a second repository-root terminal, upload and register the already downloaded artifacts:
+
+```bash
+python scripts/upload_models_to_minio.py
+```
+
+Then start the API with `python -m guardrail_mini`. On startup it resolves the two model versions from PostgreSQL, downloads them from MinIO only if the verified local cache is missing, validates checksums, and warms the models before readiness. Evaluation requests use in-memory models and do not access MinIO.
+
 ## Project map
 
 ```text
@@ -94,10 +112,12 @@ src/guardrail_mini/     application, API, policy/model code, and SQLAlchemy sche
 scripts/                model artifact setup scripts
 tests/                  automated tests
 docs/architecture/      architecture and request-flow notes
+docs/MODEL_REGISTRY.md  MinIO setup and model artifact lifecycle
+docs/DATABASE.md        PostgreSQL setup and migration instructions
 docs/DECISIONS.md       major implementation choices
 migrations/             Alembic schema revisions
 ```
 
 ## Planned implementation
 
-Later phases add API-key authentication, MinIO model artifact storage, observability, Docker Compose, load testing, CI, and a public deployment. This README will be updated as each phase is implemented and verified.
+Later phases add API-key authentication, observability, Docker Compose, load testing, CI, and a public deployment. This README will be updated as each phase is implemented and verified.
