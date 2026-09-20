@@ -168,4 +168,21 @@ Verification:
 
 ## Next
 
-Phase 11 containerizes the API, PostgreSQL, model artifact storage, and monitoring services and verifies startup from a clean Docker environment.
+## Phase 11 — Docker
+
+**Status: complete.** Added a Python 3.12 API image, `.dockerignore`, and a Compose stack for the API, PostgreSQL, MinIO, Prometheus, and Grafana. Compose applies Alembic migrations, waits for MinIO, downloads and registers missing model artifacts, and waits for API readiness before starting Prometheus. Model, ONNX cache, database, object store, and monitoring data use named volumes. The MinIO container builds from the pinned upstream source tag because upstream no longer publishes the community image. Setup commands and service inspection steps are in [DOCKER.md](DOCKER.md).
+
+Verification on Apple Silicon ARM64:
+
+- `docker compose config --quiet`: passed; Compose lists all seven services.
+- Built the CPU-only API image and the pinned MinIO source image.
+- Started the stack from fresh named volumes. PostgreSQL became healthy, migrations and model preparation exited successfully, and both pinned model artifacts were downloaded, checksum-verified, and registered in MinIO.
+- The API exported and cached its ONNX graphs, warmed all policies, and reported healthy; `GET /ready` returned HTTP 200.
+- Prometheus reported the `guardrail-api` scrape target healthy. Grafana returned healthy and its provisioned **Guardrail Mini Overview** dashboard appeared in the dashboard API.
+- A local bearer-key request through the Compose API evaluated toxicity, PII, and prompt injection; all returned `ALLOW` for the benign sample.
+- Compose host ports for PostgreSQL and MinIO use 5433, 9002, and 9003 by default to avoid the local native services already occupying 5432, 9000, and 9001. The ports are configurable in `.env`.
+- `pytest`: 43 passed; `ruff check .`, `ruff format --check .`, and `mypy src tests scripts migrations`: passed.
+
+## Next
+
+Phase 12 adds reproducible load tests and a benchmark report with measured throughput, latency, errors, resource use, and bottleneck analysis.

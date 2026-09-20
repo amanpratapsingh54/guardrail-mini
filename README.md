@@ -2,7 +2,7 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The first ten phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, failure-path tests, and a profiled ONNX Runtime backend. See the [Phase 10 profile](docs/performance/phase10-profile.md) for measured single-call latency, score parity, and the runtime trade-offs.
+The first eleven phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, failure-path tests, a profiled ONNX Runtime backend, and a verified Docker Compose stack. See the [Phase 10 profile](docs/performance/phase10-profile.md) for measured single-call latency, score parity, and runtime trade-offs, and the [Docker guide](docs/DOCKER.md) for the full local stack.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
 
@@ -11,6 +11,7 @@ See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the arc
 - Python 3.11 or newer, below 3.15. Python 3.12 is the recommended local runtime for ML package compatibility.
 - Git.
 - PostgreSQL 16 is required to run the control-plane migrations. Docker is one local option; native PostgreSQL also works.
+- Docker Engine and Docker Compose v2.24 or newer are required for the bundled full-stack Compose setup.
 
 No global Python packages are required. All Python packages install inside a project virtual environment. The two Transformer model artifacts total about 955 MB and download once into the ignored `models/` directory. The spaCy English small NER package is about 13 MB and installs into `.venv`.
 
@@ -56,6 +57,22 @@ The evaluate response includes a score in `[0, 1]` per policy, configured thresh
 ```bash
 pytest
 ```
+
+## Docker Compose
+
+Docker Compose can start the API, PostgreSQL, MinIO, Prometheus, and Grafana together. It runs the database migration, downloads and registers the pinned models on first startup, and reuses named model and ONNX-cache volumes. See [docs/DOCKER.md](docs/DOCKER.md) for setup, health checks, ports, first API-key creation, and reset commands.
+
+From the repository root:
+
+```bash
+cp .env.example .env
+docker compose build
+docker compose up -d
+docker compose ps
+docker compose logs -f model-init api
+```
+
+Run `docker compose up` without `-d` to keep the services in the foreground. The stack publishes service ports only on loopback. The sample database, MinIO, and Grafana credentials are for local development. The complete guide is [docs/DOCKER.md](docs/DOCKER.md).
 
 ## PostgreSQL control plane
 
@@ -142,6 +159,9 @@ Then start the API with `python -m guardrail_mini`. On startup it resolves the t
 src/guardrail_mini/     application, API, policy/model code, and SQLAlchemy schema
 scripts/                model artifact setup and inference profiling scripts
 tests/                  automated tests
+Dockerfile              non-root API image with ML runtime dependencies
+docker-compose.yml      local API, database, artifact store, and monitoring stack
+docs/DOCKER.md          Compose startup, service ports, health, and reset steps
 docs/architecture/      architecture and request-flow notes
 docs/MODEL_REGISTRY.md  MinIO setup and model artifact lifecycle
 docs/DATABASE.md        PostgreSQL setup and migration instructions
@@ -156,4 +176,4 @@ migrations/             Alembic schema revisions
 
 ## Planned implementation
 
-Later phases add Docker Compose, load testing, CI, and a public deployment. This README will be updated as each phase is implemented and verified.
+Later phases add reproducible load testing, CI, cloud deployment, and final portfolio polish. This README will be updated as each phase is implemented and verified.

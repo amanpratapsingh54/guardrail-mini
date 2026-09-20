@@ -25,8 +25,8 @@ The policy latency includes policy scoring and threshold decision work. The infe
 
 ## Prometheus and Grafana
 
-Provisioning files live under `monitoring/`. Prometheus scrapes `api:8000/metrics`, which is the API service name and port on the planned Compose network. Grafana automatically provisions that Prometheus data source and the **Guardrail Mini Overview** dashboard with request rate, request p95, policy action volume, policy p95, inference p95, and API error rate panels.
+Provisioning files live under `monitoring/`. Prometheus scrapes `api:8000/metrics` on the Compose network. Grafana automatically provisions that Prometheus data source and the **Guardrail Mini Overview** dashboard with request rate, request p95, policy action volume, policy p95, inference p95, and API error rate panels.
 
-After the Docker Compose phase adds the API, Prometheus, and Grafana services, start them with `docker compose up -d`. Open Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3000`. The dashboard is provisioned from source and can be edited in Grafana; changes intended to persist should be copied back to `monitoring/grafana/dashboards/guardrail-overview.json`.
+Start the full stack with `docker compose up -d`. Open Prometheus at `http://127.0.0.1:9090` and Grafana at `http://127.0.0.1:3000`. The dashboard is provisioned from source and can be edited in Grafana; changes intended to persist should be copied back to `monitoring/grafana/dashboards/guardrail-overview.json`. See [DOCKER.md](DOCKER.md) for service startup and health checks.
 
-Until Compose is available, inspect metrics from a locally running API with `curl http://127.0.0.1:8000/metrics`. The Prometheus target configuration is intended for the Compose network and is not a host-local scrape configuration.
+Inspect metrics from a locally running API with `curl http://127.0.0.1:8000/metrics`. The Prometheus target configuration uses the Compose service name and is not a host-local scrape configuration.
