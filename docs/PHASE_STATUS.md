@@ -197,4 +197,15 @@ Verification:
 
 ## Next
 
-Phase 13 adds GitHub Actions checks for the repository.
+## Phase 13 — CI/CD
+
+**Status: complete.** Added `.github/workflows/ci.yml` for pushes, pull requests, and manual runs. It uses Python 3.12, installs CPU-only PyTorch plus all project extras, downloads the pinned model artifacts and spaCy English model required by integration tests, and runs Ruff lint, Ruff formatting, mypy, and pytest.
+
+Verification:
+
+- The matching local checks pass: 43 pytest tests, Ruff lint, Ruff format, mypy, and Compose configuration validation.
+- The workflow uses read-only repository permissions and has not yet run on GitHub; its remote result will be available after the branch is pushed.
+
+## Next
+
+Phase 14 selects and deploys the API to a practical cloud platform with secrets, persistence, HTTPS, and public API verification.

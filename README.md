@@ -2,7 +2,7 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The first twelve phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, failure-path tests, a profiled ONNX Runtime backend, a verified Docker Compose stack, and reproducible API load tests. See the [Phase 10 profile](docs/performance/phase10-profile.md) for single-call model measurements, the [Phase 12 benchmark](docs/performance/benchmark.md) for measured API throughput, and the [Docker guide](docs/DOCKER.md) for the full local stack.
+The first thirteen phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, failure-path tests, a profiled ONNX Runtime backend, a verified Docker Compose stack, reproducible API load tests, and GitHub Actions checks. See the [Phase 10 profile](docs/performance/phase10-profile.md) for single-call model measurements, the [Phase 12 benchmark](docs/performance/benchmark.md) for measured API throughput, and the [Docker guide](docs/DOCKER.md) for the full local stack.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
 
@@ -174,6 +174,6 @@ docs/DECISIONS.md       major implementation choices
 migrations/             Alembic schema revisions
 ```
 
-## Planned implementation
+## Remaining phases
 
-Later phases add reproducible load testing, CI, cloud deployment, and final portfolio polish. This README will be updated as each phase is implemented and verified.
+The remaining phases cover a practical cloud deployment and a final setup walkthrough and portfolio polish. Deployment details will be added here after the public API is verified.
