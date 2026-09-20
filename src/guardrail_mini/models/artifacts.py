@@ -26,7 +26,8 @@ def verify_model_artifact(
     manifest_path = model_dir / MANIFEST_NAME
     if not manifest_path.is_file():
         raise FileNotFoundError(
-            f"Model manifest not found at {manifest_path}; run the documented model download script."
+            f"Model manifest not found at {manifest_path}; "
+            "run the documented model download script."
         )
 
     manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))

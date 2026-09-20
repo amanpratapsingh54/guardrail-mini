@@ -62,3 +62,12 @@
 - **Reason:** The model card describes a compact 0.1B-parameter binary classifier, a 2,048-token context window, and on-device use. The Hugging Face revision is pinned and the downloaded files are checksummed.
 - **Trade-off:** The weight file is about 537 MB, adding startup time and memory. The current implementation truncates to 2,048 tokens; the model card warns no classifier catches every attack and that English/German are the best-evaluated languages. Published benchmark numbers are model-author results, not project measurements.
 - **Reconsider when:** Local evaluation or profiling shows a smaller maintained model or the included ONNX quantized artifact improves the quality/latency trade-off. ONNX remains for the later profile-first optimization phase.
+
+## PostgreSQL control plane
+
+- **Problem:** Persist project ownership, API-key state, policy defaults/overrides, and model artifact metadata without putting a database query in every inference step.
+- **Options:** Keep all metadata in process settings, use a document store, or use PostgreSQL with SQLAlchemy and explicit migrations.
+- **Decision:** Use PostgreSQL 16, SQLAlchemy 2, Alembic, and the Psycopg 3 driver. Separate global policy metadata from project-specific threshold and enablement overrides; store only API-key hashes and metadata, never raw key material.
+- **Reason:** PostgreSQL provides relational constraints for tenant/project ownership, unique credentials, policy references, and model version identity. Alembic keeps schema changes reviewable and reproducible. The synchronous session API fits the current synchronous model inference routes.
+- **Trade-off:** A PostgreSQL service is an additional local dependency. The current inference registry remains cached in process; database-backed API-key authentication and startup metadata loading are wired in subsequent phases.
+- **Reconsider when:** Measured control-plane access or operational requirements call for async database access or a separate configuration service.

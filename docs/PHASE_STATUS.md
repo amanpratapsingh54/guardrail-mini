@@ -87,6 +87,18 @@ Verification on Python 3.12.10:
 - Prompt-injection smoke samples: benign request scored `0.0001`; an instruction override scored `0.9998` and returned `BLOCK`.
 - Live `python -m guardrail_mini` check: `/health`, `/ready`, and `/v1/policies` returned HTTP 200; live PII and prompt-injection evaluation returned HTTP 200 with `BLOCK` and no PII values in the response.
 
+## Phase 5 — Persistence
+
+**Status: complete.** Added SQLAlchemy 2 models and an Alembic migration for tenants, projects, hashed API-key records, global policy metadata, project policy overrides, and model versions/checksums/metrics. Alembic requires an explicit `GUARDRAIL_DATABASE_URL` from the environment or `.env`; PostgreSQL uses the Psycopg 3 driver.
+
+The request path still uses the in-process policy registry. The database schema is the control-plane store being introduced here; the following authentication and model-registry phases wire it into API requests and artifact loading. See [DATABASE.md](DATABASE.md) for setup and operations.
+
+Verification on Python 3.12.10:
+
+- `pytest`: 16 passed; the migration test creates every expected table, writes tenant/project/policy/API-key/model records, and downgrades to base using temporary SQLite.
+- PostgreSQL 16.15 on macOS: Alembic upgrade/current/check/downgrade/re-upgrade passed; `alembic check` detected no schema drift.
+- PostgreSQL ORM transaction: tenant/project, hashed key metadata, policy override, and JSON model metrics inserted and queried successfully, then rolled back.
+
 ## Next
 
-Phase 5 adds PostgreSQL control-plane persistence with SQLAlchemy, Alembic migrations, model and policy metadata, and API-key/project tables.
+Phase 6 adds MinIO as the local S3-compatible model artifact registry and loads models from checksum-verified versioned artifact paths before serving.

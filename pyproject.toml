@@ -9,8 +9,11 @@ description = "A small, production-minded ML guardrail API."
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 dependencies = [
+    "alembic>=1.14,<2",
     "fastapi>=0.115,<1",
+    "psycopg[binary]>=3.2,<4",
     "pydantic-settings>=2.6,<3",
+    "sqlalchemy>=2.0,<3",
     "uvicorn[standard]>=0.32,<1",
 ]
 

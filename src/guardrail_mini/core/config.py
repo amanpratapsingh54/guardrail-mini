@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     log_level: str = "INFO"
+    database_url: str | None = None
     toxicity_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     toxicity_review_threshold: float | None = Field(default=0.55, ge=0.0, le=1.0)
     toxicity_model_dir: Path = Path("models/toxicity/v1")

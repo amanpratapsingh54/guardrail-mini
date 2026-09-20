@@ -2,7 +2,7 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The current implementation is **Phase 4: three local guardrail policies**. It includes toxicity classification, hybrid PII detection, prompt-injection classification, request-selected policies, `ANY_BLOCK` aggregation, an in-memory policy catalog, and readiness-gated API. Authentication, persistence, observability, and deployment are later phases and are not implemented yet.
+The current implementation is **Phase 5: three local guardrail policies and a PostgreSQL control-plane schema**. It includes toxicity classification, hybrid PII detection, prompt-injection classification, request-selected policies, `ANY_BLOCK` aggregation, SQLAlchemy records for tenants, projects, policy configuration, API keys, and model versions, plus an Alembic migration. API-key enforcement, MinIO, observability, and deployment are later phases.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
 
@@ -10,7 +10,7 @@ See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the arc
 
 - Python 3.11 or newer, below 3.15. Python 3.12 is the recommended local runtime for ML package compatibility.
 - Git.
-- Docker Desktop is optional now and will be used for the later local database, artifact store, monitoring, and application stack.
+- PostgreSQL 16 is required to run the control-plane migrations. Docker is one local option; native PostgreSQL also works.
 
 No global Python packages are required. All Python packages install inside a project virtual environment. The two Transformer model artifacts total about 955 MB and download once into the ignored `models/` directory. The spaCy English small NER package is about 13 MB and installs into `.venv`.
 
@@ -55,16 +55,49 @@ The evaluate response includes a score in `[0, 1]` per policy, configured thresh
 pytest
 ```
 
+## PostgreSQL control plane
+
+Start a local PostgreSQL 16 container from the repository root:
+
+```bash
+docker run -d --name guardrail-postgres \
+  -e POSTGRES_USER=guardrail \
+  -e POSTGRES_PASSWORD=guardrail_dev_only \
+  -e POSTGRES_DB=guardrail \
+  -p 5432:5432 \
+  -v guardrail-postgres-data:/var/lib/postgresql/data \
+  --health-cmd='pg_isready -U guardrail -d guardrail' \
+  --health-interval=5s --health-timeout=3s --health-retries=10 \
+  postgres:16
+```
+
+Copy `.env.example` to `.env`, then set:
+
+```dotenv
+GUARDRAIL_DATABASE_URL=postgresql+psycopg://guardrail:guardrail_dev_only@localhost:5432/guardrail
+```
+
+Apply and inspect the schema:
+
+```bash
+alembic upgrade head
+alembic current
+docker exec -it guardrail-postgres psql -U guardrail -d guardrail -c '\\dt'
+```
+
+The migration creates tenant and project ownership, API-key hash/status fields, global policy metadata, per-project policy overrides, and versioned model metadata. The raw API key is not a database field. Detailed PostgreSQL setup, migration, inspection, and development reset steps are in [docs/DATABASE.md](docs/DATABASE.md).
+
 ## Project map
 
 ```text
-src/guardrail_mini/     application, API, and policy/model code
+src/guardrail_mini/     application, API, policy/model code, and SQLAlchemy schema
 scripts/                model artifact setup scripts
 tests/                  automated tests
 docs/architecture/      architecture and request-flow notes
 docs/DECISIONS.md       major implementation choices
+migrations/             Alembic schema revisions
 ```
 
 ## Planned implementation
 
-Later phases add PostgreSQL, API-key authentication, MinIO model artifact storage, observability, Docker, load testing, CI, and a public deployment. This README will be updated as each phase is implemented and verified.
+Later phases add API-key authentication, MinIO model artifact storage, observability, Docker Compose, load testing, CI, and a public deployment. This README will be updated as each phase is implemented and verified.

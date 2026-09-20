@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-Phase 4 contains a FastAPI process, validated environment settings, health routes, a policy catalog, a policy registry, `ANY_BLOCK` aggregation, and toxicity, PII, and prompt-injection policies. Startup verifies and loads two pinned local Transformer artifacts, initializes Presidio and the local spaCy NER model, warms every implementation, and only then reports readiness. The service does not yet connect to a database or external artifact store.
+Phase 5 contains a FastAPI process, validated environment settings, health routes, a policy catalog, a policy registry, `ANY_BLOCK` aggregation, and toxicity, PII, and prompt-injection policies. Startup verifies and loads two pinned local Transformer artifacts, initializes Presidio and the local spaCy NER model, warms every implementation, and only then reports readiness. SQLAlchemy models and an Alembic migration define PostgreSQL tenant, project, API-key, policy, and model-version records; API authentication and database-backed runtime configuration are wired in later phases.
 
 ## Target initial architecture
 
