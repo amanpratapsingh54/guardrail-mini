@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-Phase 3 contains a FastAPI process, validated environment settings, health routes, a policy catalog, a policy registry, `ANY_BLOCK` aggregation, and a toxicity evaluation route. Startup verifies and loads a pinned local model artifact, warms the classifier, and only then reports readiness. The service does not yet connect to a database or external artifact store.
+Phase 4 contains a FastAPI process, validated environment settings, health routes, a policy catalog, a policy registry, `ANY_BLOCK` aggregation, and toxicity, PII, and prompt-injection policies. Startup verifies and loads two pinned local Transformer artifacts, initializes Presidio and the local spaCy NER model, warms every implementation, and only then reports readiness. The service does not yet connect to a database or external artifact store.
 
 ## Target initial architecture
 

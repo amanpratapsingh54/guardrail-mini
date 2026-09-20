@@ -25,6 +25,7 @@ class PolicyResultResponse(BaseModel):
     score: float
     threshold: float
     action: PolicyAction
+    categories: list[str] = Field(default_factory=list)
 
 
 class EvaluateResponse(BaseModel):
@@ -74,4 +75,5 @@ def _to_response(result: PolicyResult) -> PolicyResultResponse:
         score=result.score,
         threshold=result.threshold,
         action=result.action,
+        categories=list(result.categories),
     )

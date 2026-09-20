@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-The Phase 3 API validates a 1–10,000 character input, resolves the requested policies from an in-process registry, evaluates each enabled policy, applies `ANY_BLOCK` aggregation, and returns per-policy scores, thresholds, model revisions, a request ID, and handler latency. The toxicity policy uses a review threshold and block threshold. `/ready` remains unavailable until the model is checksum-verified and warmed up.
+The Phase 4 API validates a 1–10,000 character input, resolves the requested policies from an in-process registry, evaluates each enabled policy, applies `ANY_BLOCK` aggregation, and returns per-policy scores, thresholds, category names, model revisions, a request ID, and handler latency. The toxicity, PII, and prompt-injection policies each use review and block thresholds. PII responses contain entity types only; detected values are never returned. `/ready` remains unavailable until all configured local recognizers and models load and warm up.
 
 ## Planned request lifecycle
 

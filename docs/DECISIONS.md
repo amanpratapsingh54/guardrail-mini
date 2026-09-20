@@ -44,3 +44,21 @@
 - **Reason:** This keeps model inference separate from policy thresholds and makes new checks selectable without growing route-specific conditionals.
 - **Trade-off:** There is some extra abstraction for a one-policy service; the registry is intentionally in-process until PostgreSQL is added.
 - **Reconsider when:** Policy configuration is tenant-specific or the number of implementations requires a plugin lifecycle.
+
+## PII detection
+
+- **Problem:** Detect both structured identifiers and free-text personal entities without sending text to an external service.
+- **Options:** Write a small set of regular expressions, use a large Transformer NER model, or combine local pattern recognizers with a compact NER pipeline.
+- **Decision:** Use Microsoft Presidio's MIT-licensed recognizer engine with local email, phone, US SSN, credit-card, IP, and spaCy NER recognizers. Use the MIT-licensed `en_core_web_sm` 3.8.0 model for English person and location entities.
+- **Reason:** Presidio supplies validated identifier recognizers; the small spaCy model adds person and place extraction without another large Transformer model. The API returns entity category names and scores but never the detected values. The email recognizer uses a local pattern instead of Presidio's default URL-dependent validator so startup does not fetch a public suffix list.
+- **Trade-off:** Named-entity coverage is English-focused, and SSN recognition is US-specific. The local email pattern does not validate domain registration. Recognizers still have false positives and false negatives.
+- **Reconsider when:** Multilingual coverage or measured recall justifies another model, a custom entity set, or per-tenant PII rules.
+
+## Prompt-injection detection
+
+- **Problem:** Detect malicious prompt instructions using a local specialist classifier.
+- **Options:** Use a pattern-only check, an older base DeBERTa model, or a compact current classifier trained specifically for prompt injections and jailbreak-like instructions.
+- **Decision:** Use [`patronus-studio/wolf-defender-prompt-injection-small`](https://huggingface.co/patronus-studio/wolf-defender-prompt-injection-small/tree/cdcdf7d0231d68f39cc3bb1b70f6a2bdfca8ad55) at pinned revision `cdcdf7d0231d68f39cc3bb1b70f6a2bdfca8ad55`, Apache-2.0. Use Transformers 5.10+ because the model's tokenizer metadata uses the TokenizersBackend API.
+- **Reason:** The model card describes a compact 0.1B-parameter binary classifier, a 2,048-token context window, and on-device use. The Hugging Face revision is pinned and the downloaded files are checksummed.
+- **Trade-off:** The weight file is about 537 MB, adding startup time and memory. The current implementation truncates to 2,048 tokens; the model card warns no classifier catches every attack and that English/German are the best-evaluated languages. Published benchmark numbers are model-author results, not project measurements.
+- **Reconsider when:** Local evaluation or profiling shows a smaller maintained model or the included ONNX quantized artifact improves the quality/latency trade-off. ONNX remains for the later profile-first optimization phase.

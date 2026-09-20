@@ -1,19 +1,17 @@
 """Local toxicity classifier backed by a pinned Hugging Face artifact."""
 
-import hashlib
-import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from guardrail_mini.core.policy_engine import PolicyAction, PolicyMetadata, PolicyResult
+from guardrail_mini.models.artifacts import verify_model_artifact as verify_artifact
 
 MODEL_ID = "unitary/toxic-bert"
 MODEL_REVISION = "4d6c22e74ba2fdd26bc4f7238f50766b045a0d94"
-MANIFEST_NAME = "manifest.json"
 MAX_TOKEN_LENGTH = 512
 
 
@@ -31,39 +29,10 @@ class ToxicityScorer(Protocol):
     def score(self, text: str) -> ToxicityScore: ...
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as artifact:
-        for chunk in iter(lambda: artifact.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def verify_model_artifact(model_dir: Path) -> dict[str, object]:
+    """Validate the local toxicity artifact before the tokenizer or model is loaded."""
 
-
-def verify_model_artifact(model_dir: Path) -> dict[str, Any]:
-    """Validate local files against the download manifest and return its metadata."""
-
-    manifest_path = model_dir / MANIFEST_NAME
-    if not manifest_path.is_file():
-        raise FileNotFoundError(
-            f"Model manifest not found at {manifest_path}; run `python scripts/download_model.py`."
-        )
-
-    manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("model_id") != MODEL_ID or manifest.get("revision") != MODEL_REVISION:
-        raise ValueError("Model manifest does not match the pinned toxicity model revision.")
-
-    files = manifest.get("files")
-    if not isinstance(files, dict) or not files:
-        raise ValueError("Model manifest has no file checksums.")
-
-    for filename, expected_digest in files.items():
-        artifact_path = model_dir / filename
-        if not artifact_path.is_file():
-            raise FileNotFoundError(f"Model artifact file is missing: {artifact_path}")
-        if _sha256(artifact_path) != expected_digest:
-            raise ValueError(f"Checksum validation failed for model artifact {artifact_path}.")
-
-    return manifest
+    return verify_artifact(model_dir, MODEL_ID, MODEL_REVISION)
 
 
 def _resolve_device(device_name: str) -> torch.device:
@@ -82,7 +51,7 @@ class ToxicityClassifier:
     def __init__(self, model_dir: Path, device: str = "auto") -> None:
         manifest = verify_model_artifact(model_dir)
         self._device = _resolve_device(device)
-        self._tokenizer = AutoTokenizer.from_pretrained(  # type: ignore[no-untyped-call]
+        self._tokenizer = AutoTokenizer.from_pretrained(
             model_dir,
             local_files_only=True,
             use_fast=True,

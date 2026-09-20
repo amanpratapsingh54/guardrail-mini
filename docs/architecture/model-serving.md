@@ -2,16 +2,17 @@
 
 ## Current local lifecycle
 
-The download script fetches only the model, tokenizer, and configuration files for a pinned Hugging Face revision. It writes a manifest with the resolved revision, license, framework, and SHA-256 checksums. Startup validates every listed checksum, loads the tokenizer and model from local files, runs a warm-up inference, and then reports ready. The request handler only uses the loaded in-memory classifier.
+The pre-start download scripts fetch only the model, tokenizer, and configuration files for pinned Hugging Face revisions. They write manifests with the resolved revision, license, framework, and SHA-256 checksums. Startup validates every listed checksum, loads the tokenizers and models from local files, initializes the Presidio and spaCy recognizers, runs warm-up inference, and then reports ready. Request handlers only use in-memory implementations.
 
 ```mermaid
 flowchart TD
-    ArtifactStore[(Versioned artifact store)] --> Download[Startup artifact fetch]
-    Download --> Checksum[Verify checksum]
-    Checksum --> Load[Load tokenizer and model]
-    Load --> Warmup[Warm-up inference]
+    HF[Hugging Face model sources] --> Download[Pre-start download scripts]
+    Download --> Local[(Ignored local models directory)]
+    Local --> Checksum[Verify checksums at startup]
+    Checksum --> Load[Load classifiers and local PII recognizers]
+    Load --> Warmup[Warm-up all policies]
     Warmup --> Ready[Mark service ready]
     Ready --> Requests[Serve inference requests]
 ```
 
-Phase 6 will move artifact storage from the local `models/` directory to MinIO. The selected framework and license are recorded in [the decision log](../DECISIONS.md); resource use will be measured in later profiling and load-test phases.
+Phase 6 will move Transformer artifact storage from the local `models/` directory to MinIO. The selected frameworks and licenses are recorded in [the decision log](../DECISIONS.md); resource use will be measured in later profiling and load-test phases.

@@ -37,6 +37,7 @@ class PolicyResult:
     action: PolicyAction
     model_version: str
     severity: int
+    categories: tuple[str, ...] = ()
 
 
 class Policy(Protocol):

@@ -15,6 +15,11 @@ from guardrail_mini.api.routes.policies import router as policies_router
 from guardrail_mini.core.config import Settings, get_settings
 from guardrail_mini.core.errors import GuardrailError
 from guardrail_mini.core.policy_engine import PolicyRegistry
+from guardrail_mini.policies.pii import PiiPolicy, load_pii_detector
+from guardrail_mini.policies.prompt_injection import (
+    PromptInjectionPolicy,
+    load_prompt_injection_classifier,
+)
 from guardrail_mini.policies.toxicity import ToxicityClassifier, ToxicityPolicy
 
 
@@ -32,13 +37,28 @@ def create_app(
         app.state.settings = app_settings
         app.state.ready = False
         classifier = resolve_model(app_settings)
+        pii_detector = load_pii_detector()
+        prompt_injection_classifier = load_prompt_injection_classifier(
+            app_settings.prompt_injection_model_dir,
+            app_settings.model_device,
+        )
         app.state.policy_registry = PolicyRegistry(
             [
                 ToxicityPolicy(
                     classifier,
                     threshold=app_settings.toxicity_threshold,
                     review_threshold=app_settings.toxicity_review_threshold,
-                )
+                ),
+                PiiPolicy(
+                    pii_detector,
+                    threshold=app_settings.pii_threshold,
+                    review_threshold=app_settings.pii_review_threshold,
+                ),
+                PromptInjectionPolicy(
+                    prompt_injection_classifier,
+                    threshold=app_settings.prompt_injection_threshold,
+                    review_threshold=app_settings.prompt_injection_review_threshold,
+                ),
             ]
         )
         app.state.ready = True

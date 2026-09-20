@@ -1,4 +1,4 @@
-"""Download the pinned toxicity model before starting the API."""
+"""Download the pinned Wolf Defender Small prompt-injection classifier."""
 
 import json
 from pathlib import Path
@@ -6,15 +6,16 @@ from pathlib import Path
 from huggingface_hub import HfApi, snapshot_download
 
 from guardrail_mini.models.artifacts import MANIFEST_NAME, sha256_file
-from guardrail_mini.policies.toxicity import MODEL_ID, MODEL_REVISION
+from guardrail_mini.policies.prompt_injection import MODEL_ID, MODEL_REVISION
 
-MODEL_DIR = Path("models/toxicity/v1")
+MODEL_DIR = Path("models/prompt-injection/v1")
 MODEL_FILES = (
+    "LICENSE",
     "config.json",
     "model.safetensors",
     "special_tokens_map.json",
+    "tokenizer.json",
     "tokenizer_config.json",
-    "vocab.txt",
 )
 
 

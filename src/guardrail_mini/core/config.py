@@ -18,15 +18,22 @@ class Settings(BaseSettings):
     toxicity_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     toxicity_review_threshold: float | None = Field(default=0.55, ge=0.0, le=1.0)
     toxicity_model_dir: Path = Path("models/toxicity/v1")
+    pii_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
+    pii_review_threshold: float | None = Field(default=0.55, ge=0.0, le=1.0)
+    prompt_injection_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
+    prompt_injection_review_threshold: float | None = Field(default=0.55, ge=0.0, le=1.0)
+    prompt_injection_model_dir: Path = Path("models/prompt-injection/v1")
     model_device: str = "auto"
 
     @model_validator(mode="after")
-    def validate_toxicity_thresholds(self) -> "Settings":
-        if (
-            self.toxicity_review_threshold is not None
-            and self.toxicity_review_threshold > self.toxicity_threshold
-        ):
-            raise ValueError("The review threshold must not exceed the block threshold.")
+    def validate_review_thresholds(self) -> "Settings":
+        for policy_id in ("toxicity", "pii", "prompt_injection"):
+            block_threshold = getattr(self, f"{policy_id}_threshold")
+            review_threshold = getattr(self, f"{policy_id}_review_threshold")
+            if review_threshold is not None and review_threshold > block_threshold:
+                raise ValueError(
+                    f"The {policy_id} review threshold must not exceed its block threshold."
+                )
         return self
 
     model_config = SettingsConfigDict(
