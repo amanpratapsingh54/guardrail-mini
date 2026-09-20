@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-The Phase 2 API validates a 1–10,000 character input, runs the loaded toxicity classifier, compares its `toxic` probability to a configurable threshold, and returns the score, action, model revision, request ID, and handler latency. `/ready` remains unavailable until the model is checksum-verified and warmed up.
+The Phase 3 API validates a 1–10,000 character input, resolves the requested policies from an in-process registry, evaluates each enabled policy, applies `ANY_BLOCK` aggregation, and returns per-policy scores, thresholds, model revisions, a request ID, and handler latency. The toxicity policy uses a review threshold and block threshold. `/ready` remains unavailable until the model is checksum-verified and warmed up.
 
 ## Planned request lifecycle
 

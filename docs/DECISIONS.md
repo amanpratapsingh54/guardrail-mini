@@ -35,3 +35,12 @@
 - **Reason:** Toxicity, PII, and prompt-injection detection may use different techniques; an early shared model could add complexity without measured benefit.
 - **Trade-off:** The initial policies may load separate artifacts.
 - **Reconsider when:** Measured model memory or latency shows a shared encoder would help and compatible training/model artifacts are available.
+
+## Policy interface and aggregation
+
+- **Problem:** Let callers select policy checks while keeping their implementations independent and combining results predictably.
+- **Options:** Hard-code the toxicity check in the route, or resolve policy implementations through a registry and aggregate typed results.
+- **Decision:** Use a registry behind a policy interface. Start with `ANY_BLOCK` and include `HIGHEST_SEVERITY` as an explicit extension strategy. A score at or above the review threshold returns `REVIEW`; a score at or above the block threshold returns `BLOCK`.
+- **Reason:** This keeps model inference separate from policy thresholds and makes new checks selectable without growing route-specific conditionals.
+- **Trade-off:** There is some extra abstraction for a one-policy service; the registry is intentionally in-process until PostgreSQL is added.
+- **Reconsider when:** Policy configuration is tenant-specific or the number of implementations requires a plugin lifecycle.

@@ -2,34 +2,35 @@
 
 from collections.abc import Callable
 from time import perf_counter
-from typing import Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from guardrail_mini.core.config import Settings
+from guardrail_mini.core.policy_engine import PolicyAction, PolicyRegistry, PolicyResult
 from guardrail_mini.policies.toxicity import ToxicityClassifier
 
 router = APIRouter(prefix="/v1/guardrails", tags=["guardrails"])
 
 
 class EvaluateRequest(BaseModel):
-    """Text submitted for the initial toxicity-only evaluation."""
+    """Text and policy selection submitted for evaluation."""
 
     input: str = Field(min_length=1, max_length=10_000)
+    policies: list[str] = Field(default_factory=lambda: ["toxicity"], min_length=1, max_length=10)
 
 
-class ToxicityResult(BaseModel):
+class PolicyResultResponse(BaseModel):
     score: float
     threshold: float
-    action: Literal["ALLOW", "BLOCK"]
+    action: PolicyAction
 
 
 class EvaluateResponse(BaseModel):
     request_id: str
-    action: Literal["ALLOW", "BLOCK"]
-    policy_results: dict[str, ToxicityResult]
+    action: PolicyAction
+    policy_results: dict[str, PolicyResultResponse]
     model_versions: dict[str, str]
     latency_ms: float
 
@@ -47,31 +48,30 @@ def load_model_from_settings(settings: Settings) -> ToxicityClassifier:
 
 @router.post("/evaluate", response_model=EvaluateResponse)
 def evaluate(request: Request, body: EvaluateRequest) -> EvaluateResponse:
-    """Score text with the loaded toxicity model and apply its configured threshold."""
+    """Evaluate the requested policies and aggregate their actions."""
 
     started = perf_counter()
-    classifier = getattr(request.app.state, "toxicity_classifier", None)
-    if classifier is None:
+    registry: PolicyRegistry | None = getattr(request.app.state, "policy_registry", None)
+    if registry is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The toxicity model is not ready.",
+            detail="The policy engine is not ready.",
         )
 
-    settings: Settings = request.app.state.settings
-    result = classifier.score(body.input)
-    action: Literal["ALLOW", "BLOCK"] = (
-        "BLOCK" if result.score >= settings.toxicity_threshold else "ALLOW"
-    )
+    results, action = registry.evaluate(body.input, body.policies)
+    request_id = f"req_{uuid4().hex}"
     return EvaluateResponse(
-        request_id=f"req_{uuid4().hex}",
+        request_id=request_id,
         action=action,
-        policy_results={
-            "toxicity": ToxicityResult(
-                score=result.score,
-                threshold=settings.toxicity_threshold,
-                action=action,
-            )
-        },
-        model_versions={"toxicity": result.model_version},
+        policy_results={result.policy_id: _to_response(result) for result in results},
+        model_versions={result.policy_id: result.model_version for result in results},
         latency_ms=(perf_counter() - started) * 1000,
+    )
+
+
+def _to_response(result: PolicyResult) -> PolicyResultResponse:
+    return PolicyResultResponse(
+        score=result.score,
+        threshold=result.threshold,
+        action=result.action,
     )

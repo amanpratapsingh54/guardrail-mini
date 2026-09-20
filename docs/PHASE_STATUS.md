@@ -53,3 +53,18 @@ Verification on Python 3.12.10:
 - `ruff check .` and `ruff format --check .`: passed.
 - `mypy src tests scripts`: passed.
 - Pinned model manifest validation: passed.
+
+## Phase 3 — Policy engine
+
+**Status: complete.** Policy metadata and implementations are separated behind a registry. Requests can select policies, policy metadata is available through `/v1/policies`, `ANY_BLOCK` aggregation is the default, and `HIGHEST_SEVERITY` is present as a tested extension strategy. The toxicity policy supports `ALLOW`, `REVIEW`, and `BLOCK` thresholds. Unknown policy IDs return the documented structured error.
+
+Verification:
+
+- `pytest`: 15 passed, including real toxicity model inference, threshold decisions, aggregation, and settings validation.
+- `ruff check .` and `ruff format --check .`: passed.
+- `mypy src tests scripts`: passed.
+- Live API checks: policy list/detail and safe-text evaluation returned HTTP 200; an unknown policy returned HTTP 404 with `POLICY_NOT_FOUND` and a request ID.
+
+## Next
+
+Phase 4 adds PII detection and prompt-injection detection as independent policy implementations. PII will combine deterministic entity patterns with a local NER model; prompt injection will use a dedicated open model classifier after its source and license are checked.

@@ -25,6 +25,8 @@ async def test_real_toxicity_inference_and_threshold_decision() -> None:
     app = create_app(settings)
     async with app.router.lifespan_context(app):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            policy_list = await client.get("/v1/policies")
+            policy_detail = await client.get("/v1/policies/toxicity")
             safe_response = await client.post(
                 "/v1/guardrails/evaluate",
                 json={"input": "Thank you for your thoughtful help."},
@@ -33,9 +35,19 @@ async def test_real_toxicity_inference_and_threshold_decision() -> None:
                 "/v1/guardrails/evaluate",
                 json={"input": "I hate you, you are awful and deserve to get hurt."},
             )
+            unknown_policy = await client.post(
+                "/v1/guardrails/evaluate",
+                json={"input": "hello", "policies": ["unknown"]},
+            )
 
+    assert policy_list.status_code == 200
+    assert [policy["id"] for policy in policy_list.json()] == ["toxicity"]
+    assert policy_detail.json()["threshold"] == 0.8
     assert safe_response.status_code == 200
     assert toxic_response.status_code == 200
+    assert unknown_policy.status_code == 404
+    assert unknown_policy.json()["error"]["code"] == "POLICY_NOT_FOUND"
+    assert unknown_policy.json()["error"]["request_id"].startswith("req_")
     safe_result = safe_response.json()
     toxic_result = toxic_response.json()
     assert safe_result["action"] == "ALLOW"

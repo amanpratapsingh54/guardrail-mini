@@ -4,10 +4,12 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+from guardrail_mini.core.policy_engine import PolicyAction, PolicyMetadata, PolicyResult
 
 MODEL_ID = "unitary/toxic-bert"
 MODEL_REVISION = "4d6c22e74ba2fdd26bc4f7238f50766b045a0d94"
@@ -21,6 +23,12 @@ class ToxicityScore:
 
     score: float
     model_version: str
+
+
+class ToxicityScorer(Protocol):
+    """Minimal interface required by the toxicity policy."""
+
+    def score(self, text: str) -> ToxicityScore: ...
 
 
 def _sha256(path: Path) -> str:
@@ -126,3 +134,44 @@ def load_toxicity_classifier(model_dir: Path, device: str) -> ToxicityClassifier
     classifier = ToxicityClassifier(model_dir=model_dir, device=device)
     classifier.warm_up()
     return classifier
+
+
+class ToxicityPolicy:
+    """Turn a classifier score into an explicit ALLOW, REVIEW, or BLOCK result."""
+
+    def __init__(
+        self,
+        classifier: ToxicityScorer,
+        threshold: float,
+        review_threshold: float | None,
+    ) -> None:
+        if review_threshold is not None and review_threshold > threshold:
+            raise ValueError("The review threshold must not exceed the block threshold.")
+        self._classifier = classifier
+        self._threshold = threshold
+        self._review_threshold = review_threshold
+        self.metadata = PolicyMetadata(
+            id="toxicity",
+            name="Toxicity detection",
+            version="1",
+            threshold=threshold,
+            review_threshold=review_threshold,
+            severity=3,
+        )
+
+    def evaluate(self, text: str) -> PolicyResult:
+        prediction = self._classifier.score(text)
+        if prediction.score >= self._threshold:
+            action = PolicyAction.BLOCK
+        elif self._review_threshold is not None and prediction.score >= self._review_threshold:
+            action = PolicyAction.REVIEW
+        else:
+            action = PolicyAction.ALLOW
+        return PolicyResult(
+            policy_id=self.metadata.id,
+            score=prediction.score,
+            threshold=self._threshold,
+            action=action,
+            model_version=prediction.model_version,
+            severity=self.metadata.severity,
+        )

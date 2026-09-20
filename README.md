@@ -2,7 +2,7 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The current implementation is **Phase 2: toxicity inference**. It includes a local toxicity classifier, threshold decision, and readiness-gated API. Authentication, additional policies, persistence, observability, and deployment are later phases and are not implemented yet.
+The current implementation is **Phase 3: modular policy evaluation**. It includes a local toxicity classifier, request-selected policies, `ANY_BLOCK` aggregation, an in-memory policy catalog, and readiness-gated API. PII and prompt-injection policies, authentication, persistence, observability, and deployment are later phases and are not implemented yet.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
 
@@ -10,7 +10,7 @@ See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the arc
 
 - Python 3.11 or newer, below 3.15. Python 3.12 is the recommended local runtime for ML package compatibility.
 - Git.
-- Docker Desktop is optional for Phase 1 and will be used for the later local infrastructure stack.
+- Docker Desktop is optional now and will be used for the later local database, artifact store, monitoring, and application stack.
 
 No global Python packages are required. All Python packages install inside a project virtual environment. The model weights are about 438 MB and are downloaded once into the ignored `models/` directory.
 
@@ -47,7 +47,7 @@ curl -X POST http://127.0.0.1:8000/v1/guardrails/evaluate \
   -d '{"input":"You are kind and helpful."}'
 ```
 
-The evaluate response includes a toxicity score in `[0, 1]`, the configured threshold, `ALLOW` or `BLOCK`, the model revision, a request ID, and latency. The default threshold is `0.80`; set `GUARDRAIL_TOXICITY_THRESHOLD` in `.env` to change it. The automatic tests run with:
+The evaluate response includes a score in `[0, 1]` per policy, configured thresholds, a combined `ALLOW`, `REVIEW`, or `BLOCK` action, model revisions, a request ID, and latency. By default the block threshold is `0.80` and the review threshold is `0.55`; set `GUARDRAIL_TOXICITY_THRESHOLD` or `GUARDRAIL_TOXICITY_REVIEW_THRESHOLD` in `.env` to change them. Policies default to `toxicity` and can be selected with `"policies": ["toxicity"]`. The catalog is available at `/v1/policies`. The automatic tests run with:
 
 ```bash
 pytest
