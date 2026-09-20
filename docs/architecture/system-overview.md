@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-Phase 6 contains a FastAPI process, validated environment settings, health routes, a policy catalog, a policy registry, `ANY_BLOCK` aggregation, and toxicity, PII, and prompt-injection policies. Startup resolves versioned Transformer artifact metadata from PostgreSQL, retrieves missing files from MinIO using the S3 API, verifies manifest/file checksums, initializes the local NLP pipeline, warms every implementation, and only then reports readiness. PostgreSQL also defines tenant, project, API-key, and policy configuration records; API-key authentication is wired in Phase 7.
+Phase 7 contains a FastAPI process, validated settings, health routes, a policy catalog, a policy registry, `ANY_BLOCK` aggregation, and toxicity, PII, and prompt-injection policies. Startup checks PostgreSQL, resolves versioned Transformer artifacts, retrieves missing files from MinIO using the S3 API, verifies manifest/file checksums, initializes the local NLP pipeline, warms every implementation, and only then reports readiness. Evaluation requests authenticate bearer keys and resolve tenant/project scope from a bounded in-process cache, querying PostgreSQL on a cache miss. Key creation and revocation are project-scoped.
 
 ## Target initial architecture
 

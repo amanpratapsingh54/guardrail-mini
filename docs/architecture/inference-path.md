@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-The Phase 6 API validates a 1–10,000 character input, resolves the requested policies from an in-process registry, evaluates each enabled policy, applies `ANY_BLOCK` aggregation, and returns per-policy scores, thresholds, category names, model revisions, a request ID, and handler latency. The toxicity, PII, and prompt-injection policies each use review and block thresholds. PII responses contain entity types only; detected values are never returned. At startup, optional PostgreSQL model metadata selects exact MinIO artifacts; the service verifies and loads them into local process memory before warm-up. `/ready` remains unavailable until model and PII initializers finish.
+The Phase 7 API validates a 1–10,000 character input, authenticates the bearer key, resolves tenant/project context through a short-lived in-process cache, evaluates the requested policies, applies `ANY_BLOCK` aggregation, and returns per-policy scores, thresholds, category names, model revisions, request ID, tenant/project IDs, and handler latency. The toxicity, PII, and prompt-injection policies each use review and block thresholds. PII responses contain entity types only; detected values are never returned. At startup, PostgreSQL selects exact MinIO model artifacts; the service verifies and loads them into local process memory before warm-up. `/ready` remains unavailable until database, model, and PII initialization finish.
 
 ## Planned request lifecycle
 
@@ -10,12 +10,12 @@ The Phase 6 API validates a 1–10,000 character input, resolves the requested p
 sequenceDiagram
     participant C as Client
     participant A as FastAPI
-    participant K as API key cache (later phase)
+    participant K as API key cache
     participant P as Policy engine
     participant M as Local model
     C->>A: POST /v1/guardrails/evaluate
     A->>A: Validate body and assign request ID
-    A->>K: Resolve tenant and project
+    A->>K: Validate key and resolve tenant/project (database on cache miss)
     K-->>A: Active key context
     A->>P: Evaluate requested policies
     P->>M: Run inference

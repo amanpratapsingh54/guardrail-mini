@@ -2,11 +2,14 @@
 
 from collections.abc import Callable
 from time import perf_counter
-from uuid import uuid4
+from typing import Annotated
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from guardrail_mini.api.auth import get_authenticated_project
+from guardrail_mini.auth.keys import ApiKeyPrincipal
 from guardrail_mini.core.config import Settings
 from guardrail_mini.core.policy_engine import PolicyAction, PolicyRegistry, PolicyResult
 from guardrail_mini.policies.toxicity import ToxicityClassifier
@@ -30,6 +33,8 @@ class PolicyResultResponse(BaseModel):
 
 class EvaluateResponse(BaseModel):
     request_id: str
+    tenant_id: UUID
+    project_id: UUID
     action: PolicyAction
     policy_results: dict[str, PolicyResultResponse]
     model_versions: dict[str, str]
@@ -48,7 +53,11 @@ def load_model_from_settings(settings: Settings) -> ToxicityClassifier:
 
 
 @router.post("/evaluate", response_model=EvaluateResponse)
-def evaluate(request: Request, body: EvaluateRequest) -> EvaluateResponse:
+def evaluate(
+    request: Request,
+    body: EvaluateRequest,
+    principal: Annotated[ApiKeyPrincipal, Depends(get_authenticated_project)],
+) -> EvaluateResponse:
     """Evaluate the requested policies and aggregate their actions."""
 
     started = perf_counter()
@@ -63,6 +72,8 @@ def evaluate(request: Request, body: EvaluateRequest) -> EvaluateResponse:
     request_id = f"req_{uuid4().hex}"
     return EvaluateResponse(
         request_id=request_id,
+        tenant_id=principal.tenant_id,
+        project_id=principal.project_id,
         action=action,
         policy_results={result.policy_id: _to_response(result) for result in results},
         model_versions={result.policy_id: result.model_version for result in results},

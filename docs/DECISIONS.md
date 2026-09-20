@@ -80,3 +80,12 @@
 - **Reason:** S3 API compatibility keeps the application independent of the local server and allows managed S3 for deployment. The model cache avoids object-store calls on the inference path. PostgreSQL ties the selected release to a checksummed manifest.
 - **Trade-off:** The local MinIO server is a separate process and stores root credentials in ignored `.env` for this single-user demo. As of September 2026, MinIO's upstream community server repository is archived and its Homebrew formula is deprecated, so this pinned AGPL-3.0 community build is a local evaluation dependency, not a new production recommendation. See [MinIO upstream](https://github.com/minio/minio) and the [Homebrew formula](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/m/minio.rb).
 - **Reconsider when:** Deploying publicly; use a maintained managed S3 service and workload identity or narrowly scoped credentials.
+
+## API-key authentication and caching
+
+- **Problem:** Authenticate inference clients and keep credentials scoped to tenant projects while avoiding a synchronous PostgreSQL lookup on every evaluation.
+- **Options:** Accept a static shared admin token, read the API-key table for every request, or use high-entropy per-project keys with short-lived in-process validation cache.
+- **Decision:** Generate 256-bit URL-safe keys with a `gr_live_` prefix, store SHA-256 hashes only, return plaintext once, support expiration and revocation, and resolve project/tenant context from PostgreSQL. Cache positive lookups for 30 seconds and invalid lookups for at most 5 seconds, with immediate local invalidation on revoke.
+- **Reason:** Random keys have enough entropy for a fast SHA-256 lookup without a slow password-hashing function. Project scoping keeps key creation and revocation inside one tenant boundary. The short cache avoids database work on every model request without adding Redis.
+- **Trade-off:** A different worker may honor a cached key until the TTL expires after revocation. Initial project/key bootstrapping requires a trusted shell with database access.
+- **Reconsider when:** The service has many replicas, tighter revocation guarantees, or rotation requirements that justify shared cache invalidation or an external identity provider.

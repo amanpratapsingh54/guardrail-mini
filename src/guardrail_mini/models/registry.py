@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
 
 from guardrail_mini.core.config import Settings
 from guardrail_mini.db.models import ModelVersion
@@ -50,7 +51,10 @@ MODEL_ARTIFACTS = (
 )
 
 
-def resolve_model_directories(settings: Settings) -> dict[str, Path]:
+def resolve_model_directories(
+    settings: Settings,
+    session_factory: sessionmaker[Session] | None = None,
+) -> dict[str, Path]:
     """Return local paths or fetch the registered immutable artifacts before startup."""
 
     if settings.minio_endpoint_url is None:
@@ -61,8 +65,11 @@ def resolve_model_directories(settings: Settings) -> dict[str, Path]:
     if settings.minio_secret_key is None:
         raise ValueError("The MinIO secret key is required.")
 
-    engine = create_database_engine(settings.database_url)
-    factory = create_session_factory(engine)
+    engine = None
+    factory = session_factory
+    if factory is None:
+        engine = create_database_engine(settings.database_url)
+        factory = create_session_factory(engine)
     store = S3ArtifactStore(settings)
     try:
         with factory() as session:
@@ -94,4 +101,5 @@ def resolve_model_directories(settings: Settings) -> dict[str, Path]:
             return resolved
     finally:
         store.close()
-        engine.dispose()
+        if engine is not None:
+            engine.dispose()

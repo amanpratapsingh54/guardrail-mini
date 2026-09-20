@@ -2,7 +2,7 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The current implementation is **Phase 6: three guardrail policies, PostgreSQL control-plane metadata, and MinIO model artifacts**. It includes toxicity classification, hybrid PII detection, prompt-injection classification, request-selected policies, `ANY_BLOCK` aggregation, SQLAlchemy records for tenants, projects, policy configuration, API keys, and model versions, plus checksum-verified S3-compatible artifact upload and startup loading. API-key enforcement, observability, and deployment are later phases.
+The current implementation is **Phase 7: three guardrail policies, PostgreSQL control-plane metadata, MinIO model artifacts, and bearer API-key authentication**. It includes toxicity classification, hybrid PII detection, prompt-injection classification, request-selected policies, `ANY_BLOCK` aggregation, tenant/project-scoped credentials, key creation and revocation, and checksum-verified model loading. Observability and deployment are later phases.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
 
@@ -27,14 +27,13 @@ cp .env.example .env
 python -m spacy download en_core_web_sm
 python scripts/download_model.py
 python scripts/download_prompt_injection_model.py
-python -m guardrail_mini
 ```
 
 On Windows PowerShell, activate the environment with `.venv\Scripts\Activate.ps1`. On Windows Command Prompt, use `.venv\Scripts\activate.bat`. If Python 3.12 is not available, install Python 3.12 or use another supported version with the matching `python` command.
 
 The two download scripts verify their pinned Hugging Face revisions and Apache-2.0 metadata, then write SHA-256 checksums into each model directory. Presidio and spaCy provide the English PII recognizers; they run locally with email, phone, SSN, credit-card, IP, person, and location checks. The API loads only local model files, verifies every checksum, and performs warm-up inferences before reporting ready. It never downloads a model during a request.
 
-Expected startup output includes `Uvicorn running on http://127.0.0.1:8000` after the model has loaded and warmed up. On Apple Silicon, `GUARDRAIL_MODEL_DEVICE=auto` uses Metal (MPS) when available; otherwise it uses CPU. Set `GUARDRAIL_MODEL_DEVICE=cpu` in `.env` to force CPU inference.
+On Apple Silicon, `GUARDRAIL_MODEL_DEVICE=auto` uses Metal (MPS) when available; otherwise it uses CPU. Set `GUARDRAIL_MODEL_DEVICE=cpu` in `.env` to force CPU inference.
 
 ## Check the API
 
@@ -45,6 +44,7 @@ curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/live
 curl http://127.0.0.1:8000/ready
 curl -X POST http://127.0.0.1:8000/v1/guardrails/evaluate \
+  -H "Authorization: Bearer $GUARDRAIL_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"input":"You are kind and helpful."}'
 ```
@@ -87,6 +87,23 @@ docker exec -it guardrail-postgres psql -U guardrail -d guardrail -c '\\dt'
 
 The migration creates tenant and project ownership, API-key hash/status fields, global policy metadata, per-project policy overrides, and versioned model metadata. The raw API key is not a database field. Detailed PostgreSQL setup, migration, inspection, and development reset steps are in [docs/DATABASE.md](docs/DATABASE.md).
 
+## API-key authentication
+
+The evaluate and API-key management routes require `Authorization: Bearer <key>`. After PostgreSQL migrations, create a development tenant/project and the first credential from a trusted local shell:
+
+```bash
+python scripts/bootstrap_dev_project.py
+python scripts/create_api_key.py --project-id <PROJECT_ID_FROM_OUTPUT> --name local-development
+```
+
+The key creation command prints the raw token once. Save it in your local environment as `GUARDRAIL_API_KEY`, then start the server:
+
+```bash
+python -m guardrail_mini
+```
+
+Subsequent project keys can be created with `POST /v1/api-keys` and revoked with `DELETE /v1/api-keys/{id}`. Each is scoped to the authenticated project's ID. PostgreSQL stores only SHA-256 hashes, key prefixes, active state, expiry, and last-use time. A 30-second in-process cache limits normal validation traffic to occasional database lookups; revocation in another worker can take up to that TTL to take effect. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for request and response examples.
+
 ## MinIO model artifacts
 
 MinIO is used as a local S3-compatible artifact store. The current community server repository is archived; this project uses a pinned local build for evaluation and the generic S3 API, with managed S3 intended for public deployment. The source build, local credentials, bucket layout, upload command, startup loading, checksum validation, and cache behavior are documented in [docs/MODEL_REGISTRY.md](docs/MODEL_REGISTRY.md).
@@ -114,10 +131,11 @@ tests/                  automated tests
 docs/architecture/      architecture and request-flow notes
 docs/MODEL_REGISTRY.md  MinIO setup and model artifact lifecycle
 docs/DATABASE.md        PostgreSQL setup and migration instructions
+docs/AUTHENTICATION.md  API-key lifecycle and tenant/project scope
 docs/DECISIONS.md       major implementation choices
 migrations/             Alembic schema revisions
 ```
 
 ## Planned implementation
 
-Later phases add API-key authentication, observability, Docker Compose, load testing, CI, and a public deployment. This README will be updated as each phase is implemented and verified.
+Later phases add observability, Docker Compose, load testing, CI, and a public deployment. This README will be updated as each phase is implemented and verified.

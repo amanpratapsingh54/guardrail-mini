@@ -91,7 +91,7 @@ Verification on Python 3.12.10:
 
 **Status: complete.** Added SQLAlchemy 2 models and an Alembic migration for tenants, projects, hashed API-key records, global policy metadata, project policy overrides, and model versions/checksums/metrics. Alembic requires an explicit `GUARDRAIL_DATABASE_URL` from the environment or `.env`; PostgreSQL uses the Psycopg 3 driver.
 
-The request path still uses the in-process policy registry. The database schema is the control-plane store being introduced here; the following authentication and model-registry phases wire it into API requests and artifact loading. See [DATABASE.md](DATABASE.md) for setup and operations.
+The policy registry remains cached in process. Model version rows are read during startup in Phase 6; Phase 7 uses PostgreSQL for key validation on cache misses and project-scoped key management. See [DATABASE.md](DATABASE.md) for setup and operations.
 
 Verification on Python 3.12.10:
 
@@ -114,6 +114,21 @@ Verification on Python 3.12.10 and macOS arm64:
 - API lifespan fetched artifacts from MinIO, validated checksums, loaded and warmed the real classifiers; a three-policy benign sample returned `ALLOW`, and a prompt-injection sample returned `BLOCK`.
 - PostgreSQL registry migrations and ORM persistence were verified in Phase 5.
 
+## Phase 7 — Authentication and project scope
+
+**Status: complete.** Evaluations and API-key management require bearer API keys. Keys use 256-bit random material; PostgreSQL stores only SHA-256 hashes and non-secret prefixes. Keys can be created for the authenticated project, optionally expire, and can be revoked only within that same project. A trusted local CLI bootstraps the first tenant/project and key. Successful evaluation responses include tenant and project IDs.
+
+Authentication uses a bounded in-process cache with a 30-second positive TTL and up to 5-second negative TTL. Revocation clears the current process cache immediately; other workers can continue honoring an already cached key until its TTL ends. PostgreSQL is not queried on every evaluation. No Redis service was added.
+
+Verification:
+
+- `pytest`: 28 passed, including valid, missing, invalid, expired, revoked, and cross-project key requests; key creation confirms the raw token is not persisted.
+- The real-model end-to-end test now exercises bearer authentication, policy inference, aggregation, tenant/project context, and structured unknown-policy errors.
+- PostgreSQL 16.15 manual end-to-end check passed for auth, model inference, key creation/revocation, and rejected use after revoke; the temporary tenant, project, and keys were removed afterward.
+- `ruff check .`, `ruff format --check .`, and `mypy src tests scripts migrations`: passed.
+
+See [AUTHENTICATION.md](AUTHENTICATION.md) for first-key setup, endpoint examples, expiration, and cache behavior.
+
 ## Next
 
-Phase 7 adds bearer API-key creation, hashing, authentication, revocation, expiration, and project-scoped request context.
+Phase 8 adds structured logs, request IDs, Prometheus metrics, and a Grafana dashboard.

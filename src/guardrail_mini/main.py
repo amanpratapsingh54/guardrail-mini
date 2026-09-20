@@ -6,15 +6,21 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from guardrail_mini import __version__
+from guardrail_mini.api.routes.api_keys import router as api_keys_router
 from guardrail_mini.api.routes.evaluate import load_model_from_settings
 from guardrail_mini.api.routes.evaluate import router as evaluate_router
 from guardrail_mini.api.routes.health import router as health_router
 from guardrail_mini.api.routes.policies import router as policies_router
+from guardrail_mini.auth.keys import ApiKeyAuthenticator
 from guardrail_mini.core.config import Settings, get_settings
 from guardrail_mini.core.errors import GuardrailError
 from guardrail_mini.core.policy_engine import PolicyRegistry
+from guardrail_mini.db.models import ApiKey
+from guardrail_mini.db.session import create_database_engine, create_session_factory
 from guardrail_mini.models.registry import resolve_model_directories
 from guardrail_mini.policies.pii import PiiPolicy, load_pii_detector
 from guardrail_mini.policies.prompt_injection import (
@@ -37,42 +43,65 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = app_settings
         app.state.ready = False
-        model_directories = resolve_model_directories(app_settings)
-        model_settings = app_settings.model_copy(
-            update={
-                "toxicity_model_dir": model_directories["toxicity"],
-                "prompt_injection_model_dir": model_directories["prompt_injection"],
-            }
-        )
-        classifier = resolve_model(model_settings)
-        pii_detector = load_pii_detector()
-        prompt_injection_classifier = load_prompt_injection_classifier(
-            model_settings.prompt_injection_model_dir,
-            model_settings.model_device,
-        )
-        app.state.policy_registry = PolicyRegistry(
-            [
-                ToxicityPolicy(
-                    classifier,
-                    threshold=app_settings.toxicity_threshold,
-                    review_threshold=app_settings.toxicity_review_threshold,
-                ),
-                PiiPolicy(
-                    pii_detector,
-                    threshold=app_settings.pii_threshold,
-                    review_threshold=app_settings.pii_review_threshold,
-                ),
-                PromptInjectionPolicy(
-                    prompt_injection_classifier,
-                    threshold=app_settings.prompt_injection_threshold,
-                    review_threshold=app_settings.prompt_injection_review_threshold,
-                ),
-            ]
-        )
-        app.state.ready = True
-        yield
-        app.state.policy_registry = None
-        app.state.ready = False
+        if app_settings.database_url is None:
+            raise RuntimeError("GUARDRAIL_DATABASE_URL is required to start the authenticated API.")
+        engine = create_database_engine(app_settings.database_url)
+        try:
+            factory = create_session_factory(engine)
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+                connection.execute(select(ApiKey.id).limit(1))
+            app.state.database_engine = engine
+            app.state.database_session_factory = factory
+            app.state.api_key_authenticator = ApiKeyAuthenticator(
+                factory,
+                cache_ttl_seconds=app_settings.api_key_cache_ttl_seconds,
+            )
+            model_directories = resolve_model_directories(app_settings, factory)
+            model_settings = app_settings.model_copy(
+                update={
+                    "toxicity_model_dir": model_directories["toxicity"],
+                    "prompt_injection_model_dir": model_directories["prompt_injection"],
+                }
+            )
+            classifier = resolve_model(model_settings)
+            pii_detector = load_pii_detector()
+            prompt_injection_classifier = load_prompt_injection_classifier(
+                model_settings.prompt_injection_model_dir,
+                model_settings.model_device,
+            )
+            app.state.policy_registry = PolicyRegistry(
+                [
+                    ToxicityPolicy(
+                        classifier,
+                        threshold=app_settings.toxicity_threshold,
+                        review_threshold=app_settings.toxicity_review_threshold,
+                    ),
+                    PiiPolicy(
+                        pii_detector,
+                        threshold=app_settings.pii_threshold,
+                        review_threshold=app_settings.pii_review_threshold,
+                    ),
+                    PromptInjectionPolicy(
+                        prompt_injection_classifier,
+                        threshold=app_settings.prompt_injection_threshold,
+                        review_threshold=app_settings.prompt_injection_review_threshold,
+                    ),
+                ]
+            )
+            app.state.ready = True
+            yield
+        except SQLAlchemyError as error:
+            raise RuntimeError(
+                "The control-plane database is unavailable or its migrations are missing."
+            ) from error
+        finally:
+            app.state.policy_registry = None
+            app.state.api_key_authenticator = None
+            app.state.database_session_factory = None
+            app.state.database_engine = None
+            app.state.ready = False
+            engine.dispose()
 
     application = FastAPI(
         title=app_settings.app_name,
@@ -101,6 +130,7 @@ def create_app(
     application.include_router(health_router)
     application.include_router(evaluate_router)
     application.include_router(policies_router)
+    application.include_router(api_keys_router)
     return application
 
 
