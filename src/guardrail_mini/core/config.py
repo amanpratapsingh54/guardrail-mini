@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     minio_bucket: str = "guardrail-models"
     artifact_cache_dir: Path = Path("data/model-cache")
     api_key_cache_ttl_seconds: int = Field(default=30, ge=1, le=300)
+    demo_enabled: bool = False
+    demo_rate_limit_requests_per_minute: int = Field(default=10, ge=1, le=100)
     toxicity_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     toxicity_review_threshold: float | None = Field(default=0.55, ge=0.0, le=1.0)
     toxicity_model_dir: Path = Path("models/toxicity/v1")

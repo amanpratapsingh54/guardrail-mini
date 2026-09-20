@@ -56,6 +56,8 @@ PostgreSQL uses `pg_isready`. The API health check calls `/ready`. The model set
 | Prometheus | <http://127.0.0.1:9090> | Metrics and scrape status |
 | Grafana | <http://127.0.0.1:3000> | Provisioned dashboard |
 
+The interactive prompt playground is at <http://127.0.0.1:8000/demo>. It evaluates text using the actual loaded policies and shows scores, thresholds, actions, model versions, and the aggregation step. The unauthenticated demo route is enabled in the local Compose configuration, limited to 10 requests per minute per client address, and accepts at most 2,000 characters. Demo text is not stored or logged. The API-only evaluation endpoint remains API-key authenticated.
+
 Grafana defaults are in `.env.example`; the dashboard is **Guardrail Mini Overview**. The API listens on `0.0.0.0` inside its container while the published host port is loopback-only.
 
 ## Create an API key and evaluate text

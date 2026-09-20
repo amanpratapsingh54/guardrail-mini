@@ -115,14 +115,14 @@ If the secret already exists, skip `gcloud secrets create` and add a new version
 
 ## Deploy
 
-Deploy the image with HTTPS, the runtime database secret, a startup probe on `/ready`, a four-minute startup-probe budget, a five-minute request timeout, and scale-to-zero/max-one settings:
+Deploy the image with HTTPS, the runtime database secret, a startup probe on `/ready`, a four-minute startup-probe budget, a five-minute request timeout, and scale-to-zero/max-one settings. The deployment script enables the public `/demo` playground at 10 requests per minute per client address; authenticated API evaluation remains available at `/v1/guardrails/evaluate`:
 
 ```bash
 export GUARDRAIL_IMAGE
 bash scripts/deploy_cloudrun.sh
 ```
 
-Cloud Run configures the TLS endpoint and provides the service URL at the end of deployment. The service account needs `roles/secretmanager.secretAccessor` on the runtime URL secret. `scripts/deploy_cloudrun.sh` sets the container port to `8080`, requires the API key for inference, caps each instance at one in-flight request, and allows the public endpoint to be reached over HTTPS.
+Cloud Run configures the TLS endpoint and provides the service URL at the end of deployment. The service account needs `roles/secretmanager.secretAccessor` on the runtime URL secret. `scripts/deploy_cloudrun.sh` sets the container port to `8080`, requires an API key for `/v1/guardrails/evaluate`, caps each instance at one in-flight request, and allows the public endpoint to be reached over HTTPS. The separate recruiter playground at `/demo` is public and rate-limited.
 
 ## Verify the public API
 
@@ -139,6 +139,8 @@ curl --fail -X POST "$BASE_URL/v1/guardrails/evaluate" \
 ```
 
 The evaluation should return HTTP 200, include one result for each policy, and return `ALLOW` for this benign sample. Without a valid key, the evaluation route should return HTTP 401. The API model metadata should show both pinned model revisions.
+
+Open `${BASE_URL}/demo` in a browser to use the recruiter-facing playground. It runs the actual policies and exposes only the result metadata, not the submitted text. The public demo is capped at 10 requests per minute per client address and 2,000 characters per request.
 
 ## Operations and limits
 

@@ -12,6 +12,8 @@ HTTP request bodies are capped at 65,536 bytes by default. Set `GUARDRAIL_MAX_RE
 
 The rate limiter is in-process and intentionally bounded. Each API process maintains its own window, so multiple replicas do not share a global quota. Put a gateway with a shared rate-limit policy in front of a multi-replica deployment if a strict aggregate quota is required.
 
+The optional unauthenticated playground (`GUARDRAIL_DEMO_ENABLED=true`) accepts up to 2,000 characters and defaults to 10 evaluations per minute per client address. Its per-address counters are in-process and reset when the service restarts. Disable the demo route when a public interactive playground is not wanted; for multiple replicas, enforce a shared quota at the gateway. The demo evaluates text in memory and returns scores and decisions without persisting or logging the submitted text. Visitors should still avoid entering confidential or personal information.
+
 ## Network and browser access
 
 CORS is disabled. The API does not send cross-origin browser permissions by default. Same-origin server applications can call it directly. If a browser client is needed, configure a specific trusted-origin allowlist at the HTTPS gateway; do not allow every origin with credentialed requests.

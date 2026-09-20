@@ -133,6 +133,10 @@ Responses include `X-Request-ID`; evaluation JSON carries the same ID. Applicati
 
 The API caps request bodies and applies a per-project evaluation rate limit. CORS is disabled until a trusted browser origin is explicitly configured at an HTTPS gateway. See [docs/SECURITY.md](docs/SECURITY.md) for limits and deployment security requirements.
 
+## Interactive demo
+
+Docker Compose serves a browser playground at <http://127.0.0.1:8000/demo>. Visitors can submit up to 2,000 characters, select toxicity, personal-data, and prompt-injection checks, and inspect policy scores, configured thresholds, model versions, latency, and the aggregated action. The demo endpoint is unauthenticated, opt-in through `GUARDRAIL_DEMO_ENABLED`, and limited to 10 evaluations per minute per client address by default. Text is evaluated in memory and omitted from application logs and persistent storage. The service returns a decision; it does not forward or execute prompts in a generative model. The Cloud Run deployment script enables this public demo route.
+
 Run the dependency advisory check after installing development extras:
 
 ```bash

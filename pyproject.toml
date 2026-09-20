@@ -43,6 +43,7 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/guardrail_mini"]
+include = ["src/guardrail_mini/static/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

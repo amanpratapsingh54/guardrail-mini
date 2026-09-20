@@ -22,6 +22,6 @@ gcloud run deploy guardrail-mini \
   --timeout 300 \
   --startup-probe=httpGet.path=/ready,httpGet.port=8080,timeoutSeconds=10,periodSeconds=10,failureThreshold=24 \
   --service-account "${service_account}" \
-  --set-env-vars "GUARDRAIL_ENVIRONMENT=production,GUARDRAIL_HOST=0.0.0.0,GUARDRAIL_PORT=8080,GUARDRAIL_MODEL_DEVICE=cpu,GUARDRAIL_MODEL_RUNTIME=onnxruntime,GUARDRAIL_ONNX_CACHE_DIR=/app/data/onnx-cache,GUARDRAIL_RATE_LIMIT_REQUESTS_PER_MINUTE=600,OMP_NUM_THREADS=1" \
+  --set-env-vars "GUARDRAIL_ENVIRONMENT=production,GUARDRAIL_HOST=0.0.0.0,GUARDRAIL_PORT=8080,GUARDRAIL_MODEL_DEVICE=cpu,GUARDRAIL_MODEL_RUNTIME=onnxruntime,GUARDRAIL_ONNX_CACHE_DIR=/app/data/onnx-cache,GUARDRAIL_RATE_LIMIT_REQUESTS_PER_MINUTE=600,GUARDRAIL_DEMO_ENABLED=true,GUARDRAIL_DEMO_RATE_LIMIT_REQUESTS_PER_MINUTE=10,OMP_NUM_THREADS=1" \
   --set-secrets "GUARDRAIL_DATABASE_URL=${secret_name}:1" \
   --allow-unauthenticated

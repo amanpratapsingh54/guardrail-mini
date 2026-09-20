@@ -232,6 +232,12 @@ Verification:
 
 **Status: complete.** Updated the README project map and implementation roadmap, corrected architecture documentation to reflect the verified local stack, added a Cloud Run architecture diagram, and prepared the cloud deployment guide. Added an interview guide with system design, tradeoffs, measured evidence, and limitations, plus resume bullets tied to measured results. The README now names the larger future-production options without implementing them.
 
+## Phase 17 — Interactive recruiter playground
+
+**Status: implemented locally.** Added a same-origin browser playground at `/demo` and an opt-in unauthenticated demo evaluation route. It shows actual per-policy actions, scores, configured thresholds, model versions, aggregate `ANY_BLOCK` decision, request ID, and inference latency. Demo requests are capped at 2,000 characters and 10 evaluations per minute per client address by default; the service does not persist or log submitted text, forward it to another model, or execute a downstream action. Compose enables the demo locally; the Cloud Run deployment script enables the public demo route.
+
+The local API image was rebuilt and Compose reports the API healthy. The live page is available at `http://127.0.0.1:8000/demo`; public access still requires the separately documented Cloud Run deployment.
+
 ## Remaining
 
 To finish Phase 14 and the external checks in Phase 15, authenticate `gcloud` to a billed Google Cloud project, provision the Neon PostgreSQL database, and run the documented deployment. A GitHub remote and authenticated GitHub session are also needed to observe the workflow run from GitHub.

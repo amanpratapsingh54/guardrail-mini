@@ -18,6 +18,7 @@ from starlette.responses import Response
 from guardrail_mini import __version__
 from guardrail_mini.api.middleware import RequestBodyLimitMiddleware
 from guardrail_mini.api.routes.api_keys import router as api_keys_router
+from guardrail_mini.api.routes.demo import router as demo_router
 from guardrail_mini.api.routes.evaluate import load_model_from_settings
 from guardrail_mini.api.routes.evaluate import router as evaluate_router
 from guardrail_mini.api.routes.health import router as health_router
@@ -132,6 +133,10 @@ def create_app(
     )
     application.state.rate_limiter = ProjectRateLimiter(
         app_settings.rate_limit_requests_per_minute,
+    )
+    application.state.demo_rate_limiter = ProjectRateLimiter(
+        app_settings.demo_rate_limit_requests_per_minute,
+        max_projects=4096,
     )
 
     @application.middleware("http")
@@ -262,6 +267,7 @@ def create_app(
         )
 
     application.include_router(health_router)
+    application.include_router(demo_router)
     application.include_router(evaluate_router)
     application.include_router(policies_router)
     application.include_router(api_keys_router)
