@@ -1,0 +1,21 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg
+      - BAKE_MODELS=true
+      - --tag
+      - ${_IMAGE}
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_IMAGE}
+
+images:
+  - ${_IMAGE}
+
+substitutions:
+  _IMAGE: us-east4-docker.pkg.dev/$PROJECT_ID/guardrail/guardrail-mini:latest
+
+timeout: 3600s

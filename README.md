@@ -2,9 +2,11 @@
 
 A portfolio project for a small, production-minded guardrail API. It evaluates text with specialized policy implementations and returns `ALLOW`, `BLOCK`, or `REVIEW` decisions.
 
-The first thirteen phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, failure-path tests, a profiled ONNX Runtime backend, a verified Docker Compose stack, reproducible API load tests, and GitHub Actions checks. See the [Phase 10 profile](docs/performance/phase10-profile.md) for single-call model measurements, the [Phase 12 benchmark](docs/performance/benchmark.md) for measured API throughput, and the [Docker guide](docs/DOCKER.md) for the full local stack.
+The first thirteen phases are complete: three real guardrail policies, PostgreSQL control-plane metadata, S3-compatible model artifacts, bearer API-key authentication, privacy-safe observability, bounded request bodies, per-project rate limits, failure-path tests, a profiled ONNX Runtime backend, a verified Docker Compose stack, reproducible API load tests, and GitHub Actions checks. See the [Phase 10 profile](docs/performance/phase10-profile.md) for single-call model measurements, the [Phase 12 benchmark](docs/performance/benchmark.md) for measured API throughput, the [Cloud Run deployment guide](docs/DEPLOYMENT.md), and the [Docker guide](docs/DOCKER.md) for the full local stack.
 
 See [the phase status and environment checklist](docs/PHASE_STATUS.md), [the architecture overview](docs/architecture/system-overview.md), and [the decision log](docs/DECISIONS.md).
+
+For a concise design walkthrough, see the [interview guide](docs/INTERVIEW_GUIDE.md) and [resume bullets](docs/RESUME_BULLETS.md).
 
 ## Requirements
 
@@ -41,6 +43,8 @@ The example `.env` selects `GUARDRAIL_MODEL_RUNTIME=onnxruntime`, which runs the
 ## Check the API
 
 With the server running, open <http://127.0.0.1:8000/docs> for Swagger UI or run:
+
+Set up PostgreSQL and create the first API key using the [database guide](docs/DATABASE.md) and [authentication guide](docs/AUTHENTICATION.md) before making an authenticated evaluation request.
 
 ```bash
 curl http://127.0.0.1:8000/health
@@ -156,24 +160,29 @@ Then start the API with `python -m guardrail_mini`. On startup it resolves the t
 ## Project map
 
 ```text
-src/guardrail_mini/     application, API, policy/model code, and SQLAlchemy schema
-scripts/                model artifact setup and inference profiling scripts
-tests/                  automated tests
-Dockerfile              non-root API image with ML runtime dependencies
-docker-compose.yml      local API, database, artifact store, and monitoring stack
-docs/DOCKER.md          Compose startup, service ports, health, and reset steps
-docs/architecture/      architecture and request-flow notes
-docs/MODEL_REGISTRY.md  MinIO setup and model artifact lifecycle
-docs/DATABASE.md        PostgreSQL setup and migration instructions
-docs/AUTHENTICATION.md  API-key lifecycle and tenant/project scope
-docs/OBSERVABILITY.md  request IDs, structured logs, metrics, and dashboards
-docs/SECURITY.md       request limits, API keys, CORS, and deployment security
-docs/performance/      measured inference runtime comparison
-monitoring/             Prometheus and Grafana provisioning and dashboard
-docs/DECISIONS.md       major implementation choices
-migrations/             Alembic schema revisions
+src/guardrail_mini/      application, API, policy/model code, and SQLAlchemy schema
+scripts/                 model setup, inference profiling, load test, and deployment helpers
+tests/                   automated tests
+Dockerfile               non-root API image with optional baked model artifacts
+docker-compose.yml       local API, database, artifact store, and monitoring stack
+deployment/cloudrun/     Cloud Build configuration for a self-contained Cloud Run image
+docs/DOCKER.md           Compose startup, service ports, health, and reset steps
+docs/DEPLOYMENT.md       Cloud Run deployment, managed secrets, database, and verification
+docs/architecture/       local and cloud architecture and request-flow notes
+docs/MODEL_REGISTRY.md   MinIO model artifact lifecycle
+docs/DATABASE.md         PostgreSQL setup and migration instructions
+docs/AUTHENTICATION.md   API-key lifecycle and tenant/project scope
+docs/OBSERVABILITY.md    request IDs, structured logs, metrics, and dashboards
+docs/SECURITY.md         request limits, API keys, CORS, and deployment security
+docs/performance/        measured inference runtime comparison
+docs/INTERVIEW_GUIDE.md  design and benchmark walkthrough
+docs/RESUME_BULLETS.md   evidence-based project bullets
+.github/workflows/ci.yml Python 3.12 lint, type, and model-backed test checks
+monitoring/              Prometheus and Grafana provisioning and dashboard
+docs/DECISIONS.md        major implementation choices
+migrations/              Alembic schema revisions
 ```
 
-## Remaining phases
+## Future Production Architecture
 
-The remaining phases cover a practical cloud deployment and a final setup walkthrough and portfolio polish. Deployment details will be added here after the public API is verified.
+The initial service intentionally stays small. A larger production deployment could add distributed rate limits and richer tenant RBAC, model registries backed by managed object storage, multiple API workers or GPU inference, autoscaling, private VPC access, Kubernetes with Karpenter, multi-region active-active routing, Terraform, and air-gapped on-premise installs. Those capabilities need workload evidence and are outside this implementation.

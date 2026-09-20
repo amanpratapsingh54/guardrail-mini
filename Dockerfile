@@ -3,6 +3,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    OMP_NUM_THREADS=2 \
     HF_HOME=/app/data/huggingface
 
 WORKDIR /app
@@ -27,6 +28,16 @@ RUN python -m pip install --upgrade pip \
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY scripts ./scripts
+
+# Cloud Run builds bake the verified weights and ONNX graphs into the image. Local Compose
+# keeps its named model volume and initializes it through the model-init service instead.
+ARG BAKE_MODELS=false
+RUN if [ "${BAKE_MODELS}" = "true" ]; then \
+        python scripts/download_model.py \
+        && python scripts/download_prompt_injection_model.py \
+        && python scripts/prepare_cloudrun_cache.py \
+        && chmod -R a+rX /app/models /app/data/onnx-cache; \
+    fi
 
 USER guardrail
 

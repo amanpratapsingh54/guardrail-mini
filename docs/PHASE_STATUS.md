@@ -206,6 +206,32 @@ Verification:
 - The matching local checks pass: 43 pytest tests, Ruff lint, Ruff format, mypy, and Compose configuration validation.
 - The workflow uses read-only repository permissions and has not yet run on GitHub; its remote result will be available after the branch is pushed.
 
-## Next
+## Phase 14 — Cloud deployment
 
-Phase 14 selects and deploys the API to a practical cloud platform with secrets, persistence, HTTPS, and public API verification.
+**Status: deployment preparation complete; public provisioning pending account access.** Selected Cloud Run with Neon PostgreSQL. Added a Cloud Build configuration that downloads and verifies the pinned model revisions, bakes their ONNX graphs into the image, and pushes to Artifact Registry. Added a deployment script for a one-vCPU, 4-GiB, max-one-instance Cloud Run service with scale-to-zero, HTTPS, a readiness probe, and a Secret Manager database URL. The deployment guide documents persistent PostgreSQL, runtime role permissions, migrations, key creation, cost controls, public verification, and cleanup.
+
+Verification:
+
+- Built the `BAKE_MODELS=true` image locally. Both pinned model manifests validated, both float32 ONNX graphs exported, and the image started against the local PostgreSQL database.
+- The baked image reported `/ready` HTTP 200 and returned the full policy catalog. An authenticated all-policy evaluation returned HTTP 200 with all three pinned model versions; its one-day smoke-test API key was revoked and a retry returned HTTP 401.
+- Rebuilt and recreated the normal Compose API image with `BAKE_MODELS=false`; the service passed the Compose readiness health check using its existing MinIO artifacts and ONNX cache.
+- Public provisioning remains unverified because `gcloud` is not installed or authenticated and no Neon database is configured in this workspace.
+
+## Phase 15 — Final validation
+
+**Status: local walkthrough complete.** Reviewed the repository as a new engineer following only the README, linked database and first-key setup next to the API request example, updated architecture notes to match the verified local stack, and added the cloud deployment walkthrough. The repository has no configured Git remote, so the clone step is limited to the local checkout; remote GitHub Actions and public API checks remain pending account setup.
+
+Verification:
+
+- Full suite: 43 tests passed on Python 3.12.
+- `ruff check .`, `ruff format --check .`, `mypy src tests scripts migrations`, Compose config validation, Cloud Build YAML parsing, deployment shell syntax, and `git diff --check` passed.
+- The local Docker Compose API and the self-contained deployment image were both built and exercised with model-backed readiness and evaluation.
+- The Phase 12 load test covers 10, 20, 50, 75, and 100 requests/s target stages and records errors, dropped iterations, latency, CPU, and memory in [the benchmark report](performance/benchmark.md).
+
+## Phase 16 — Portfolio polish
+
+**Status: complete.** Updated the README project map and implementation roadmap, corrected architecture documentation to reflect the verified local stack, added a Cloud Run architecture diagram, and prepared the cloud deployment guide. Added an interview guide with system design, tradeoffs, measured evidence, and limitations, plus resume bullets tied to measured results. The README now names the larger future-production options without implementing them.
+
+## Remaining
+
+To finish Phase 14 and the external checks in Phase 15, authenticate `gcloud` to a billed Google Cloud project, provision the Neon PostgreSQL database, and run the documented deployment. A GitHub remote and authenticated GitHub session are also needed to observe the workflow run from GitHub.
