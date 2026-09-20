@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "guardrail-mini"
+version = "0.1.0"
+description = "A small, production-minded ML guardrail API."
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "pydantic-settings>=2.6,<3",
+    "uvicorn[standard]>=0.32,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27,<1",
+    "mypy>=1.13,<2",
+    "pytest>=8.3,<9",
+    "ruff>=0.8,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/guardrail_mini"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+strict = true
