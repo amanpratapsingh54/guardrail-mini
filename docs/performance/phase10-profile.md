@@ -45,4 +45,4 @@ The cache identity includes the source manifest digest and PyTorch, ONNX, and ON
 
 ## Limits of this result
 
-The run used 30 serial observations per backend on one machine. It does not measure HTTP routing, authentication, PostgreSQL, MinIO, concurrency, memory under multiple workers, or tail behavior under load. Serial scores per second is the reciprocal of the measured mean latency; it is not a service capacity claim. Phase 12 must measure request throughput, errors, resource use, and end-to-end latency under reproducible load before making capacity statements.
+The run used 30 serial observations per backend on one machine. It does not measure HTTP routing, authentication, PostgreSQL, MinIO, concurrency, memory under multiple workers, or tail behavior under load. Serial scores per second is the reciprocal of the measured mean latency; it is not a service capacity claim. The [Phase 12 API benchmark](benchmark.md) separately measures end-to-end throughput, errors, resource use, and latency under load.

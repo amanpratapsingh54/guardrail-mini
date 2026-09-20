@@ -183,6 +183,18 @@ Verification on Apple Silicon ARM64:
 - Compose host ports for PostgreSQL and MinIO use 5433, 9002, and 9003 by default to avoid the local native services already occupying 5432, 9000, and 9001. The ports are configurable in `.env`.
 - `pytest`: 43 passed; `ruff check .`, `ruff format --check .`, and `mypy src tests scripts migrations`: passed.
 
+## Phase 12 — Load testing
+
+**Status: complete.** Added a reproducible k6 constant-arrival-rate script for authenticated all-policy API requests and a measured benchmark report. The profile exposed ONNX intra-op thread oversubscription: limiting the Compose API to two threads reduced 10 RPS p95 from 553 ms to 30 ms and average API CPU from 14.15 to 0.82 cores. With that setting, 50 RPS remained stable; 75 and 100 RPS saturated the API and dropped scheduled iterations. Prometheus per-policy inference histograms identified PII analysis as the largest policy-side contributor during the saturation window. The benchmark records hardware, models, configuration, commands, results, resource method, and limitations in [performance/benchmark.md](performance/benchmark.md).
+
+Verification:
+
+- k6 v2.2.0 ran authenticated 30-second stages at 10, 20, 50, 75, and 100 RPS targets.
+- At 10, 20, and 50 RPS, all policy checks passed with no HTTP failures or dropped iterations; throughput matched each target.
+- At 75 and 100 RPS, completed requests remained HTTP 200, but k6 dropped 113 and 810 scheduled iterations respectively; the service returned to healthy status afterward.
+- Container CPU was measured from cgroup CPU usage counter deltas; API memory high-water was 2.10 GiB.
+- The Compose API rate limit was restored to its documented default of 600 requests/minute after testing.
+
 ## Next
 
-Phase 12 adds reproducible load tests and a benchmark report with measured throughput, latency, errors, resource use, and bottleneck analysis.
+Phase 13 adds GitHub Actions checks for the repository.

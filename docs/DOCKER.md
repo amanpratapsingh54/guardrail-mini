@@ -12,6 +12,8 @@ The checked-in `.env.example` values are local development credentials. Compose 
 
 The MinIO image is built locally from the pinned upstream `RELEASE.2025-10-15T17-29-55Z` source tag because upstream no longer publishes that community container image. Compose publishes PostgreSQL on host port 5433 and MinIO on 9002/9003 by default to avoid common local PostgreSQL and MinIO ports; change `POSTGRES_HOST_PORT`, `MINIO_API_HOST_PORT`, or `MINIO_CONSOLE_HOST_PORT` in `.env` if needed.
 
+Compose sets `OMP_NUM_THREADS=2` for the CPU-only ONNX Runtime session pools, based on the local concurrency profile. Override it in `.env` when measuring another thread setting.
+
 ## Build and start
 
 Run from the repository root:
